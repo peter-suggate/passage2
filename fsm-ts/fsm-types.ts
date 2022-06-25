@@ -1,5 +1,6 @@
-export type Transition<States, Actions> = {
+export type Transition<States, Actions, Value = any> = {
   target: keyof States;
+  value: Value;
   actions: (keyof Actions)[];
 };
 
@@ -14,7 +15,7 @@ export type FsmEventHandler<States, Actions> = (
 ) => void;
 
 export type ServiceInvocation<States, Services, Actions, Context> = {
-  id: keyof Services;
+  serviceId: keyof Services;
   onDone: Transition<States, Actions>;
   onError: Transition<States, Actions>;
 };
@@ -70,7 +71,31 @@ export type FsmMachine<
   context: Context;
 };
 
-export type SpawnedService = Promise<unknown>;
+export type FsmService<
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  InitialState extends keyof States,
+  Services extends ServiceDefinitions<States, Services, Actions, Context>,
+  Actions extends ActionDefinitions<States, Actions, Context>,
+  Context extends object
+> = {
+  currentState: FsmState<States, Services, Actions, Context>;
+
+  subscribe: (listener: () => void) => () => void;
+  start: () => SpawnedService[];
+  transition: (transitionName: string) => SpawnedService[];
+};
+
+export type SpawnedService = {
+  // Useful for awaiting the service to complete. For example, if this is a promise
+  // service, awaits the promise to complete. For a machine service, awaits the
+  // service to reach its final state and return.
+  promise: Promise<unknown>;
+
+  status: "pending" | "settled";
+
+  // Some services (such as invoked machines) can be communicated with.
+  service: undefined | FsmService<any, any, any, any, any>;
+};
 
 // Holds all state for an interpreted machine.
 export type FsmState<States, Services, Actions, Context> = {

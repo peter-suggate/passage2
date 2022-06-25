@@ -1,3 +1,4 @@
+import { createService } from "./createService";
 import {
   ActionDefinitions,
   ApplyTransitionResult,
@@ -6,6 +7,7 @@ import {
   ServiceDefinition,
   ServiceDefinitions,
   ServiceInvocation,
+  SpawnedService,
   StateDefinitions,
   TransitionEvent,
 } from "./fsm-types";
@@ -45,24 +47,64 @@ export const executeActions = <States, Actions, Context>(
   return resultContext;
 };
 
-const invokeService = async <States, Services, Actions, Context>(
+const invokeService = <States, Services, Actions, Context>(
   invocation: ServiceInvocation<States, Services, Actions, Context>,
-  service: ServiceDefinition<States, Services, Actions, Context>,
+  serviceDefinition: ServiceDefinition<States, Services, Actions, Context>,
   context: Context,
   event: FsmEvent<States, Actions>,
   onSendEvent: (event: TransitionEvent<States, Actions>) => void
 ) => {
-  if (typeof service === "function") {
-    return service(context, event)
-      .then((result) => {
+  const spawnedService = {
+    status: "pending",
+  } as SpawnedService;
+
+  if (typeof serviceDefinition === "function") {
+    spawnedService.promise = serviceDefinition(context, event)
+      .then((value) => {
+        spawnedService.status = "settled";
+
         invocation.onDone &&
-          onSendEvent({ type: "onDone", ...invocation.onDone });
+          onSendEvent({ type: "onDone", ...invocation.onDone, value });
       })
       .catch((error) => {
+        spawnedService.status = "settled";
         invocation.onError &&
-          onSendEvent({ type: "onError", ...invocation.onError });
+          onSendEvent({ type: "onError", ...invocation.onError, value: error });
       });
-  } else throw Error("TODO implement me (machine case)");
+  } else {
+    spawnedService.promise = new Promise((resolve, reject) => {
+      const machine = serviceDefinition;
+
+      const service = createService(machine);
+      spawnedService.service = service;
+
+      const disposer = service.subscribe(() => {
+        const finalState = Object.keys(machine.states).find(
+          (state) => machine.states[state].type === "final"
+        );
+        if (!finalState) {
+          throw new Error(
+            "Machine has no final state and therefore cannot be exited."
+          );
+        }
+
+        if (service.currentState.value === finalState) {
+          spawnedService.status = "settled";
+
+          invocation.onDone &&
+            onSendEvent({ type: "onDone", ...invocation.onDone });
+
+          resolve(service.currentState);
+
+          disposer();
+        }
+      });
+
+      service.start();
+    });
+  }
+
+  return spawnedService;
 };
 
 const invokeServices = <States, Services, Actions, Context>(
@@ -75,7 +117,7 @@ const invokeServices = <States, Services, Actions, Context>(
   return invocations.map((invocation) =>
     invokeService(
       invocation,
-      serviceDefinitions[invocation.id],
+      serviceDefinitions[invocation.serviceId],
       context,
       event,
       onSendEvent

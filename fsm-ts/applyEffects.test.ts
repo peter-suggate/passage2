@@ -5,8 +5,8 @@ import { createMachine } from "./createMachine";
 const makeSubject = ({
   action1 = jest.fn(),
   action2 = jest.fn(),
-  service1 = async () => 1,
-  service2 = async () => 2,
+  service1 = async () => 123,
+  service2 = async () => 456,
   onService1Done = jest.fn(),
 }) =>
   createMachine({
@@ -18,14 +18,14 @@ const makeSubject = ({
       state1: {
         entry: "action1",
         invoke: {
-          id: "service1",
+          serviceId: "service1",
           onDone: { target: "state2", actions: ["onService1Done"] },
           onError: { target: "error" },
         },
       },
       state2: {
         invoke: {
-          id: "service2",
+          serviceId: "service2",
           onDone: { target: "state3" },
           onError: { target: "error" },
         },
@@ -79,6 +79,7 @@ it("executes any actions, maintaining the machine's context", async () => {
     actions: ["onService1Done"],
     target: "state2",
     type: "onDone",
+    value: 123,
   });
 
   // Manually execute the transition returned via an event above.
@@ -91,5 +92,9 @@ it("executes any actions, maintaining the machine's context", async () => {
     onSendEvent2
   );
   await Promise.all(result2.spawnedServices);
-  expect(onSendEvent2).toBeCalledWith({ target: "error", type: "onError" });
+  expect(onSendEvent2).toBeCalledWith({
+    target: "error",
+    type: "onError",
+    value: Error("Error executing service2"),
+  });
 });

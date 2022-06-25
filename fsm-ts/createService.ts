@@ -3,7 +3,9 @@ import { applyTransition } from "./applyTransition";
 import {
   ActionDefinitions,
   FsmMachine,
+  FsmService,
   ServiceDefinitions,
+  SpawnedService,
   StateDefinitions,
   TransitionEvent,
 } from "./fsm-types";
@@ -16,33 +18,47 @@ export const createService = <
   Context extends {}
 >(
   machine: FsmMachine<States, InitialState, Services, Actions, Context>
-) => {
+): FsmService<States, InitialState, Services, Actions, Context> => {
   const transition = applyTransition(machine);
   const effects = applyEffects(machine);
 
-  const initialState = transition();
+  const initialTransition = transition();
+  const initialState = {
+    value: initialTransition.value,
+    context: machine.context,
+    spawnedServices: [] as SpawnedService[],
+  };
+
+  type Subscription = () => void;
+  let subscribers: Subscription[] = [];
 
   const self = {
-    currentState: {
-      value: initialState.value,
-      context: machine.context,
+    currentState: initialState,
+    subscribe: (subscription: Subscription) => {
+      subscribers = subscribers
+        .filter((cur) => cur !== subscription)
+        .concat(subscription);
+
+      return () => subscribers.filter((cur) => cur !== subscription);
     },
-    updateState: (newState: { value: keyof States; context: Context }) => {
+    updateState: (newState: typeof initialState) => {
       self.currentState = newState;
+
+      subscribers.forEach((sub) => sub());
     },
-    start: async () => {
+    start: () => {
       const result = effects(
-        initialState,
+        initialTransition,
         self.currentState.context,
         { type: "initial" },
         self.send
       );
 
-      self.updateState({ value: initialState.value, context: result.context });
+      self.updateState({ ...result });
 
-      return await Promise.all(result.spawnedServices);
+      return result.spawnedServices;
     },
-    transition: async (transitionName: string) => {
+    transition: (transitionName: string) => {
       const newState = transition(self.currentState.value, transitionName);
 
       const result = effects(
@@ -52,9 +68,9 @@ export const createService = <
         self.send
       );
 
-      self.updateState({ value: newState.value, context: result.context });
+      self.updateState({ ...result, value: newState.value });
 
-      return Promise.all(result.spawnedServices);
+      return result.spawnedServices;
     },
     send: async (event: TransitionEvent<States, Actions>) => {
       self.transition(event.type);

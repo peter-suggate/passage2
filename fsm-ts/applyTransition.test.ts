@@ -44,7 +44,7 @@ describe("instantiating a machine", () => {
         state: {
           entry: "action",
           invoke: {
-            id: "service",
+            serviceId: "service",
           },
         },
       },
@@ -54,7 +54,7 @@ describe("instantiating a machine", () => {
     const { actions, services } = applyTransition(machine)();
 
     expect(actions).toEqual(["action"]);
-    expect(services).toEqual([{ id: "service" }]);
+    expect(services).toEqual([{ serviceId: "service" }]);
   });
 });
 
@@ -166,7 +166,7 @@ describe("transitioning between states", () => {
         state2: {
           type: "final",
           invoke: {
-            id: "invokeChildMachine",
+            serviceId: "invokeChildMachine",
           },
         },
       },
@@ -178,6 +178,6 @@ describe("transitioning between states", () => {
     expect(state1.value).toBe("state1");
 
     const state2 = apply(state1.value, "transition");
-    expect(state2.services).toEqual([{ id: "invokeChildMachine" }]);
+    expect(state2.services).toEqual([{ serviceId: "invokeChildMachine" }]);
   });
 });

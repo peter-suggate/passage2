@@ -14,6 +14,7 @@ it("has expected initial state", () => {
   expect(service.currentState).toEqual({
     context: undefined,
     value: "state",
+    spawnedServices: [],
   });
 });
 
@@ -90,7 +91,7 @@ it("supports invoking a promise service", async () => {
     states: {
       state: {
         invoke: {
-          id: "promiseService",
+          serviceId: "promiseService",
           onDone: {
             target: "final",
             actions: ["onDoneAction"],
@@ -119,6 +120,67 @@ it("supports invoking a promise service", async () => {
     { type: "initial" }
   );
   expect(onDoneAction).toBeCalledWith({ value: "context" }, { type: "onDone" });
+
+  expect(service.currentState.value).toBe("final");
+});
+
+it("supports invoking a machine service", async () => {
+  const childMachine = createMachine({
+    initial: "retrieving todos",
+    context: {
+      todos: [],
+    },
+    states: {
+      "retrieving todos": {
+        on: {
+          retrieved: { target: "returning todos", actions: ["store todos"] },
+        },
+      },
+      "returning todos": {
+        type: "final",
+      },
+    },
+    actions: {
+      "store todos": (context: { todos: [] }) => ({
+        todos: [],
+      }),
+    },
+  });
+
+  const onDoneAction = jest.fn();
+
+  const machine = createMachine({
+    initial: "loading",
+    states: {
+      loading: {
+        invoke: {
+          serviceId: "childMachine",
+          onDone: {
+            target: "final",
+            actions: ["onDoneAction"],
+          },
+        },
+      },
+      final: {
+        type: "final",
+      },
+    },
+    services: {
+      childMachine,
+    },
+    actions: {
+      onDoneAction,
+    },
+    context: { value: "context" },
+  });
+
+  const service = createService(machine);
+
+  const spawnedServices = service.start();
+
+  spawnedServices[0].service!.transition("retrieved");
+
+  await spawnedServices[0].promise;
 
   expect(service.currentState.value).toBe("final");
 });
