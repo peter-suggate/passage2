@@ -1,0 +1,13 @@
+.machineNode {
+  height: 50px;
+  border: 1px solid #aaa;
+  padding: 5px;
+  border-radius: 5px;
+  background: white;
+}
+
+.machineNode label {
+  display: block;
+  color: #777;
+  font-size: 12px;
+}
