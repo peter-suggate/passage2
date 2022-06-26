@@ -82,6 +82,8 @@ it("invokes actions upon state entry and exit", async () => {
   expect(service.currentState.value).toBe("state2");
 });
 
+const promiseObject = new Promise((res) => res(undefined));
+
 it("supports invoking a promise service", async () => {
   const promiseService = jest.fn(async () => "promise result");
   const onDoneAction = jest.fn();
@@ -113,13 +115,49 @@ it("supports invoking a promise service", async () => {
 
   const service = createService(machine);
 
-  await service.start();
+  const listener = jest.fn();
+  service.subscribe(listener);
+
+  service.start();
+
+  expect(listener).toBeCalledWith({
+    newState: {
+      context: { value: "context" },
+      spawnedServices: [{ promise: promiseObject, status: "pending" }],
+      value: "state",
+    },
+    prevState: {
+      context: { value: "context" },
+      spawnedServices: [],
+      value: "state",
+    },
+    type: "state updated",
+  });
+  listener.mockClear();
 
   expect(promiseService).toBeCalledWith(
     { value: "context" },
     { type: "initial" }
   );
+
+  await service.currentState.spawnedServices[0].promise;
+
   expect(onDoneAction).toBeCalledWith({ value: "context" }, { type: "onDone" });
+
+  expect(listener).toBeCalledWith({
+    newState: {
+      context: { value: "context" },
+      spawnedServices: [],
+      value: "final",
+    },
+    prevState: {
+      context: { value: "context" },
+      spawnedServices: [{ promise: promiseObject, status: "settled" }],
+      value: "state",
+    },
+    type: "state updated",
+  });
+  listener.mockClear();
 
   expect(service.currentState.value).toBe("final");
 });

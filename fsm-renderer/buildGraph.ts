@@ -1,7 +1,7 @@
 import { Edge, Node, Position } from "react-flow-renderer";
-import { SpawnedService } from "../fsm-ts/fsm-types";
+import { FsmService, SpawnedService } from "../fsm-ts/fsm-types";
 
-export const buildGraph = (spawnedService: SpawnedService) => {
+export const buildGraph = (service: FsmService<any, any, any, any, any>) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
@@ -9,27 +9,25 @@ export const buildGraph = (spawnedService: SpawnedService) => {
     id: `node-${0}`,
     type: "machineNode",
     position: { x: 0, y: 0 },
-    data: { value: spawnedService },
+    data: { value: { service } },
   });
 
-  spawnedService.service!.currentState.spawnedServices.forEach(
-    (spawnedService, index) => {
-      nodes.push({
-        id: `node-${index + 1}`,
-        type: spawnedService.service ? "machineNode" : "promiseNode",
-        position: { x: 200 * (index + 1), y: 0 },
-        data: { value: spawnedService },
-      });
+  service.currentState.spawnedServices.forEach((spawnedService, index) => {
+    nodes.push({
+      id: `node-${index + 1}`,
+      type: spawnedService.service ? "machineNode" : "promiseNode",
+      position: { x: 200 * (index + 1), y: 0 },
+      data: { value: spawnedService },
+    });
 
-      edges.push({
-        id: `edge-${index + 1}`,
-        source: `node-0`,
-        target: `node-${index + 1}`,
-        targetHandle: "a",
-        sourceHandle: "a",
-      });
-    }
-  );
+    edges.push({
+      id: `edge-${index + 1}`,
+      source: `node-0`,
+      target: `node-${index + 1}`,
+      targetHandle: "a",
+      sourceHandle: "a",
+    });
+  });
 
   //   const nodes: Node[] = [
   //     {

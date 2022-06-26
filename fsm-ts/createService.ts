@@ -2,8 +2,10 @@ import { applyEffects } from "./applyEffects";
 import { applyTransition } from "./applyTransition";
 import {
   ActionDefinitions,
+  FsmListener,
   FsmMachine,
   FsmService,
+  FsmServiceEvent,
   ServiceDefinitions,
   SpawnedService,
   StateDefinitions,
@@ -29,22 +31,45 @@ export const createService = <
     spawnedServices: [] as SpawnedService[],
   };
 
-  type Subscription = () => void;
-  let subscribers: Subscription[] = [];
+  type DisposeSub = () => void;
+  let listeners: FsmListener[] = [];
+  const notifySubscribers = (event: FsmServiceEvent) => {
+    listeners.forEach((listener) => listener(event));
+  };
+
+  // Maintain listeners to any long-lived children so we can pass on their
+  // events to our own listeners.
+  const spawnedServiceListeners: DisposeSub[] = [];
 
   const self = {
     currentState: initialState,
-    subscribe: (subscription: Subscription) => {
-      subscribers = subscribers
+    subscribe: (subscription: FsmListener) => {
+      listeners = listeners
         .filter((cur) => cur !== subscription)
         .concat(subscription);
 
-      return () => subscribers.filter((cur) => cur !== subscription);
+      return () => listeners.filter((cur) => cur !== subscription);
     },
     updateState: (newState: typeof initialState) => {
+      const prevState = self.currentState;
+
+      spawnedServiceListeners.forEach((disposer) => disposer());
+
       self.currentState = newState;
 
-      subscribers.forEach((sub) => sub());
+      newState.spawnedServices
+        .filter(({ service }) => !!service)
+        .forEach(({ service }) => {
+          spawnedServiceListeners.push(
+            service!.subscribe((event) => {
+              notifySubscribers(event);
+            })
+          );
+        });
+
+      listeners.forEach((sub) =>
+        sub({ type: "state updated", prevState, newState })
+      );
     },
     start: () => {
       const result = effects(
@@ -67,6 +92,10 @@ export const createService = <
         { type: transitionName },
         self.send
       );
+
+      // result.spawnedServices.forEach(service => service.service)
+      if (result.value !== newState.value)
+        throw Error("result.value !== newState.value");
 
       self.updateState({ ...result, value: newState.value });
 

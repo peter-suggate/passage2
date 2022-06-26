@@ -98,6 +98,8 @@ const invokeService = <States, Services, Actions, Context>(
 
           disposer();
         }
+
+        // TODO handle onError. How?
       });
 
       service.start();

@@ -71,6 +71,14 @@ export type FsmMachine<
   context: Context;
 };
 
+export type FsmServiceEvent = {
+  type: "state updated";
+  prevState: FsmState<any, any, any, any>;
+  newState: FsmState<any, any, any, any>;
+};
+
+export type FsmListener = (e: FsmServiceEvent) => void;
+
 export type FsmService<
   States extends StateDefinitions<States, Services, Actions, Context>,
   InitialState extends keyof States,
@@ -80,10 +88,12 @@ export type FsmService<
 > = {
   currentState: FsmState<States, Services, Actions, Context>;
 
-  subscribe: (listener: () => void) => () => void;
+  subscribe: (listener: FsmListener) => () => void;
   start: () => SpawnedService[];
   transition: (transitionName: string) => SpawnedService[];
 };
+
+export type AnyService = FsmService<any, any, any, any, any>;
 
 export type SpawnedService = {
   // Useful for awaiting the service to complete. For example, if this is a promise
@@ -94,7 +104,7 @@ export type SpawnedService = {
   status: "pending" | "settled";
 
   // Some services (such as invoked machines) can be communicated with.
-  service: undefined | FsmService<any, any, any, any, any>;
+  service: undefined | AnyService;
 };
 
 // Holds all state for an interpreted machine.
