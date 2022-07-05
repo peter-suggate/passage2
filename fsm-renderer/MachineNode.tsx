@@ -1,52 +1,52 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
-import { createService } from "../fsm-ts/createService";
-import { SpawnedService } from "../fsm-ts/fsm-types";
-import styles from "./MachineNode.module.css";
-
-// const handleStyle = { left: 10 };
+import { AnyService } from "../fsm-ts/fsm-types";
+import { MachineContext } from "./MachineContext";
+import styles from "./Nodes.module.css";
 
 type Props = {
-  data: { value: SpawnedService };
+  data: {
+    value: string;
+    isActive: boolean;
+    hasChildren: boolean;
+    width: number;
+    height: number;
+    service: AnyService;
+  };
 };
 
-const serviceToViewModel = (service: SpawnedService) => {
-  return { ...service.service };
-};
+// const toViewModel = (model: Props["data"]) => {
+//   return { ...model };
+// };
 
 export const MachineNode = ({ data }: Props) => {
-  const [vm, setVM] = React.useState(serviceToViewModel(data.value));
+  // const [vm, setVM] = React.useState(toViewModel(data));
 
-  React.useEffect(() => {
-    const disposer = data.value.service!.subscribe(() => {
-      setVM(serviceToViewModel(data.value));
-    });
+  const { width, height, service } = data;
 
-    disposer();
-  }, [data.value]);
+  // React.useEffect(() => {
+  //   const disposer = service.subscribe(() => {
+  //     setVM(toViewModel(data));
+  //   });
 
-  const onChange = React.useCallback(
-    (evt: React.ChangeEvent<HTMLInputElement>) => {
-      console.log(evt.target.value);
-    },
-    []
-  );
+  //   disposer();
+  // }, [data, data.value, service]);
+
+  // console.log(service.currentState.context);
 
   return (
-    <div className={styles.machineNode}>
-      {/* <Handle type="target" position={Position.Top} /> */}
-      <div>{vm.currentState?.value as string}</div>
-      {/* <div>
-        <label htmlFor="text">Text:</label>
-        <input id="text" name="text" onChange={onChange} />
-      </div> */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="a"
-        // style={handleStyle}
-      />
-      {/* <Handle type="source" position={Position.Bottom} id="b" /> */}
+    <div
+      className={`${styles.machineNode} ${
+        data.isActive ? styles.isActive : ""
+      } ${data.hasChildren ? styles.hasChildren : ""}`}
+      style={{ width, height: height }}
+    >
+      <div className={styles.title}>{data.value}</div>
+      {/* <Handle type="target" position={Position.Left} id="child" />
+      <Handle type="source" position={Position.Right} id="parent" /> */}
+      <Handle type="source" position={Position.Bottom} id="source" />
+      <Handle type="target" position={Position.Top} id="target" />
+      <MachineContext context={service.currentState.context} />
     </div>
   );
 };

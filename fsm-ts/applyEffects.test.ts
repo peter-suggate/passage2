@@ -18,14 +18,14 @@ const makeSubject = ({
       state1: {
         entry: "action1",
         invoke: {
-          serviceId: "service1",
+          src: "service1",
           onDone: { target: "state2", actions: ["onService1Done"] },
           onError: { target: "error" },
         },
       },
       state2: {
         invoke: {
-          serviceId: "service2",
+          src: "service2",
           onDone: { target: "state3" },
           onError: { target: "error" },
         },

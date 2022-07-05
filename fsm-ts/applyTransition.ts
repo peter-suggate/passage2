@@ -1,3 +1,5 @@
+import { KeyOf } from "./fsm-core-types";
+import { stateHasTransitions } from "./fsm-type-guards";
 import {
   ActionDefinitions,
   ApplyTransitionResult,
@@ -11,12 +13,14 @@ import {
 const lookupTransition = <
   States extends StateDefinitions<States, Services, Actions, Context>,
   Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<States, Actions, Context>,
-  Context
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends object
 >(
   state: StateDefinition<States, Services, Actions, Context>,
   transitionName: string
 ): Transition<States, Actions> => {
+  if (!stateHasTransitions(state)) throw new Error("TODO handle me");
+
   if (transitionName === "onDone" && state.invoke?.onDone) {
     return state.invoke.onDone;
   } else if (transitionName === "onError" && state.invoke?.onError) {
@@ -33,9 +37,9 @@ const lookupTransition = <
 export const applyTransition =
   <
     States extends StateDefinitions<States, Services, Actions, Context>,
-    InitialState extends keyof States,
+    InitialState extends KeyOf<States>,
     Services extends ServiceDefinitions<States, Services, Actions, Context>,
-    Actions extends ActionDefinitions<States, Actions, Context>,
+    Actions extends ActionDefinitions<Actions, Context>,
     Context extends object
   >(
     machine: FsmMachine<States, InitialState, Services, Actions, Context>
@@ -56,6 +60,8 @@ export const applyTransition =
     }
 
     const currentState = machine.states[state];
+    if (!stateHasTransitions<States, Services, Actions, Context>(currentState))
+      throw new Error("TODO handle me");
 
     const transition = lookupTransition<States, Services, Actions, Context>(
       currentState,

@@ -1,5 +1,6 @@
 import { createMachine } from "./createMachine";
 import { createService } from "./createService";
+import { FsmEvent } from "./fsm-types";
 
 it("has expected initial state", () => {
   const machine = createMachine({
@@ -93,7 +94,7 @@ it("supports invoking a promise service", async () => {
     states: {
       state: {
         invoke: {
-          serviceId: "promiseService",
+          src: "promiseService",
           onDone: {
             target: "final",
             actions: ["onDoneAction"],
@@ -123,7 +124,9 @@ it("supports invoking a promise service", async () => {
   expect(listener).toBeCalledWith({
     newState: {
       context: { value: "context" },
-      spawnedServices: [{ promise: promiseObject, status: "pending" }],
+      spawnedServices: [
+        { id: "promiseService", promise: promiseObject, status: "pending" },
+      ],
       value: "state",
     },
     prevState: {
@@ -142,7 +145,10 @@ it("supports invoking a promise service", async () => {
 
   await service.currentState.spawnedServices[0].promise;
 
-  expect(onDoneAction).toBeCalledWith({ value: "context" }, { type: "onDone" });
+  expect(onDoneAction).toBeCalledWith(
+    { value: "context" },
+    { type: "onDone", value: "promise result" }
+  );
 
   expect(listener).toBeCalledWith({
     newState: {
@@ -152,7 +158,9 @@ it("supports invoking a promise service", async () => {
     },
     prevState: {
       context: { value: "context" },
-      spawnedServices: [{ promise: promiseObject, status: "settled" }],
+      spawnedServices: [
+        { id: "promiseService", promise: promiseObject, status: "settled" },
+      ],
       value: "state",
     },
     type: "state updated",
@@ -163,39 +171,48 @@ it("supports invoking a promise service", async () => {
 });
 
 it("supports invoking a machine service", async () => {
+  type ChildContext = { fetched: string[] };
+
   const childMachine = createMachine({
+    id: "child",
     initial: "retrieving todos",
     context: {
-      todos: [],
+      fetched: [],
     },
     states: {
       "retrieving todos": {
         on: {
-          retrieved: { target: "returning todos", actions: ["store todos"] },
+          retrieved: {
+            target: "returning todos",
+            actions: ["store fetched"],
+            // value: ["fetched todo", "another fetched todo"],
+          },
         },
       },
       "returning todos": {
         type: "final",
+        data: "return fetched",
       },
     },
     actions: {
-      "store todos": (context: { todos: [] }) => ({
-        todos: [],
+      "return fetched": (context: ChildContext) => context.fetched,
+      "store fetched": (context: ChildContext, event: FsmEvent) => ({
+        ...context,
+        fetched: event.value,
       }),
     },
   });
 
-  const onDoneAction = jest.fn();
-
   const machine = createMachine({
+    id: "parent",
     initial: "loading",
     states: {
       loading: {
         invoke: {
-          serviceId: "childMachine",
+          src: "childMachine",
           onDone: {
             target: "final",
-            actions: ["onDoneAction"],
+            actions: ["store fetched todos from child"],
           },
         },
       },
@@ -207,18 +224,28 @@ it("supports invoking a machine service", async () => {
       childMachine,
     },
     actions: {
-      onDoneAction,
+      "store fetched todos from child": (context: any, event: FsmEvent) => ({
+        ...context,
+        todos: event.value,
+      }),
     },
-    context: { value: "context" },
+    context: { todos: [] },
   });
 
   const service = createService(machine);
 
   const spawnedServices = service.start();
 
-  spawnedServices[0].service!.transition("retrieved");
+  spawnedServices[0].service!.transition("retrieved", [
+    "fetched todo",
+    "another fetched todo",
+  ]);
 
   await spawnedServices[0].promise;
 
   expect(service.currentState.value).toBe("final");
+  expect(service.currentState.context.todos).toEqual([
+    "fetched todo",
+    "another fetched todo",
+  ]);
 });

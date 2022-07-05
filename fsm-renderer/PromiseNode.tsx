@@ -1,8 +1,7 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
-import { createService } from "../fsm-ts/createService";
 import { SpawnedService } from "../fsm-ts/fsm-types";
-import styles from "./PromiseNode.module.css";
+import styles from "./Nodes.module.css";
 
 type Props = {
   data: { value: SpawnedService };

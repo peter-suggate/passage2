@@ -1,5 +1,6 @@
 import { applyEffects } from "./applyEffects";
 import { applyTransition } from "./applyTransition";
+import { KeyOf } from "./fsm-core-types";
 import {
   ActionDefinitions,
   FsmListener,
@@ -14,10 +15,10 @@ import {
 
 export const createService = <
   States extends StateDefinitions<States, Services, Actions, Context>,
-  InitialState extends keyof States,
+  InitialState extends KeyOf<States>,
   Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<States, Actions, Context>,
-  Context extends {}
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends object
 >(
   machine: FsmMachine<States, InitialState, Services, Actions, Context>
 ): FsmService<States, InitialState, Services, Actions, Context> => {
@@ -43,12 +44,15 @@ export const createService = <
 
   const self = {
     currentState: initialState,
+    machine,
     subscribe: (subscription: FsmListener) => {
       listeners = listeners
         .filter((cur) => cur !== subscription)
         .concat(subscription);
 
-      return () => listeners.filter((cur) => cur !== subscription);
+      return () => {
+        listeners = listeners.filter((cur) => cur !== subscription);
+      };
     },
     updateState: (newState: typeof initialState) => {
       const prevState = self.currentState;
@@ -83,13 +87,13 @@ export const createService = <
 
       return result.spawnedServices;
     },
-    transition: (transitionName: string) => {
+    transition: (transitionName: string, value: any) => {
       const newState = transition(self.currentState.value, transitionName);
 
       const result = effects(
         newState,
         self.currentState.context,
-        { type: transitionName },
+        { type: transitionName, value },
         self.send
       );
 
@@ -102,7 +106,7 @@ export const createService = <
       return result.spawnedServices;
     },
     send: async (event: TransitionEvent<States, Actions>) => {
-      self.transition(event.type);
+      return self.transition(event.type, event.value);
     },
   };
 

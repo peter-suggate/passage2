@@ -1,61 +1,40 @@
+import React from "react";
 import ReactFlow from "react-flow-renderer";
 import styles from "./FsmRenderer.module.css";
-import { createMachine } from "../fsm-ts/createMachine";
 import { createService } from "../fsm-ts/createService";
 import { MachineNode } from "./MachineNode";
 import { PromiseNode } from "./PromiseNode";
 import { makeFsmGraphStore } from "./fsmToGraph";
+import { menuMachine } from "../examples/practice/menuMachine";
+import { StateNode } from "./StateNode";
+import { TransitionNode } from "./TransitionNode";
 
-const sleep = async (ms: number) =>
-  new Promise((res) => window.setTimeout(() => res(undefined), ms));
-
-const todosMachine = createMachine({
-  initial: "loading",
-  context: {
-    todos: [],
-  },
-  states: {
-    loading: {
-      invoke: {
-        serviceId: "loadTodos",
-        onDone: { target: "displaying", actions: ["onTodosLoaded"] },
-        onError: { target: "showing error" },
-      },
-    },
-    displaying: {},
-    "showing error": {
-      type: "final",
-    },
-  },
-  actions: {
-    onTodosLoaded: (context: unknown, event: { todos: string[] }) => ({
-      todos: event.todos,
-    }),
-  },
-  services: {
-    loadTodos: async () => {
-      await sleep(2000);
-      return ["Wash dishes", "Finish passage2", "Tidy room"];
-    },
-  },
-});
-
-const todosService = createService(todosMachine);
+const todosService = createService(menuMachine);
 todosService.start();
 
 // we define the nodeTypes outside of the component to prevent re-renderings
 // you could also use useMemo inside the component
-const nodeTypes = { machineNode: MachineNode, promiseNode: PromiseNode };
+const nodeTypes = {
+  machineNode: MachineNode,
+  promiseNode: PromiseNode,
+  stateNode: StateNode,
+  transitionNode: TransitionNode,
+};
 
 const useTodosGraph = makeFsmGraphStore(todosService);
 
 export const FsmRenderer = () => {
   const { nodes, edges, update } = useTodosGraph();
 
-  todosService.subscribe((event) => {
-    console.log(event);
+  React.useEffect(() => {
     update();
-  });
+
+    const disposer = todosService.subscribe((event) => {
+      update();
+    });
+
+    return disposer;
+  }, [update]);
 
   return (
     <ReactFlow
@@ -64,7 +43,7 @@ export const FsmRenderer = () => {
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
-      fitView
+      // fitView
     />
   );
 };

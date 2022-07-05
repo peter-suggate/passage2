@@ -2,6 +2,7 @@ import create from "zustand";
 import { Edge, Node } from "react-flow-renderer";
 import { AnyService } from "../fsm-ts/fsm-types";
 import { buildGraph } from "./buildGraph";
+import { buildServiceGraph } from "./buildServiceGraph";
 
 interface GraphState {
   nodes: Node[];
@@ -10,11 +11,14 @@ interface GraphState {
 }
 
 export const makeFsmGraphStore = (service: AnyService) => {
-  const initialGraph = buildGraph(service);
+  const initialGraph = { nodes: [], edges: [] };
 
   const store = create<GraphState>((set) => ({
     ...initialGraph,
-    update: () => set(() => buildGraph(service)),
+    update: async () => {
+      const graph = await buildServiceGraph(service);
+      set(() => graph);
+    },
   }));
 
   return store;

@@ -1,0 +1,85 @@
+.machineNode {
+  border: 2px solid #555;
+  border-radius: 5px;
+  background: transparent;
+}
+
+.machineNode .title {
+  background-color: #555;
+  color: white;
+  padding: 5px;
+  text-align: center;
+  border-radius: 5px 5px 0 0;
+  margin: -2px;
+}
+
+.machineNode label {
+  display: block;
+  color: #777;
+  /* font-size: 12px; */
+}
+
+.currentState {
+  margin: 10px 20px;
+}
+
+.machineNode button {
+  background-color: #25e;
+  color: white;
+  border: none;
+  margin: 12px;
+  border-radius: 20px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.promiseNode {
+  height: 50px;
+  border: 1px solid #aaa;
+  padding: 5px;
+  border-radius: 5px;
+  background: white;
+}
+
+.promiseNode label {
+  display: block;
+  color: #777;
+  /* font-size: 12px; */
+}
+
+.stateNode {
+  background: #555;
+  border-radius: 5px;
+}
+
+.stateNode .title {
+  color: white;
+  padding: 5px;
+  text-align: center;
+  border-radius: 10px;
+  padding: 5px 10px;
+}
+
+.stateNode.isActive {
+  background-color: #c3a;
+}
+
+.stateNode .finalLabel {
+  text-transform: uppercase;
+  color: #555;
+}
+
+.transitionNode {
+  background-color: #25e;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.transitionNode .title {
+  display: block;
+  color: white;
+  background-color: transparent;
+}
