@@ -1,8 +1,8 @@
 import { KeyOf } from "./fsm-core-types";
+import { ApplyTransitionResult } from "./fsm-service-types";
 import { stateHasTransitions } from "./fsm-type-guards";
 import {
   ActionDefinitions,
-  ApplyTransitionResult,
   FsmMachine,
   ServiceDefinitions,
   StateDefinition,
@@ -46,7 +46,7 @@ export const applyTransition =
   ) =>
   (
     state?: keyof States,
-    transitionName?: string
+    transitionName?: string | null
   ): ApplyTransitionResult<States, Services, Actions, Context> => {
     if (!state || !transitionName) {
       // Uninitialized state.

@@ -80,12 +80,17 @@ export type StateDefinitions<
 
 export type MachineServiceDefinition = FsmMachine<any, any, any, any, any>;
 
-export type ServiceDefinition<States, Services, Actions, Context> =
-  | ((context: Context, event: FsmEvent) => Promise<unknown>)
+export type PromiseServiceDefinition<Context> = (
+  context: Context,
+  event: FsmEvent
+) => Promise<unknown>;
+
+export type ServiceDefinition<Context> =
+  | PromiseServiceDefinition<Context>
   | MachineServiceDefinition;
 
 export type ServiceDefinitions<States, Services, Actions, Context> = {
-  [S in keyof Services]: ServiceDefinition<States, Services, Actions, Context>;
+  [S in keyof Services]: ServiceDefinition<Context>;
 };
 
 export type ActionDefinitions<Actions, Context extends object = object> = {
@@ -109,72 +114,10 @@ export type FsmMachine<
 
 export type AnyMachine = FsmMachine<any, any, any, any, any>;
 
-export type FsmServiceEvent = {
-  type: "state updated";
-  prevState: FsmState<any, any, any, any>;
-  newState: FsmState<any, any, any, any>;
-};
-
-export type FsmListener = (e: FsmServiceEvent) => void;
-
-export type FsmService<
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  InitialState extends keyof States,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
-> = {
-  currentState: FsmState<States, Services, Actions, Context>;
-  readonly machine: FsmMachine<
-    States,
-    InitialState,
-    Services,
-    Actions,
-    Context
-  >;
-
-  subscribe: (listener: FsmListener) => () => void;
-  start: () => SpawnedService[];
-  transition: (transitionName: string, value?: any) => SpawnedService[];
-  // execute: (action: keyof Actions) => void;
-};
-
-export type AnyService = FsmService<any, any, any, any, any>;
-
-export type SpawnedService = {
-  id: string;
-
-  // Useful for awaiting the service to complete. For example, if this is a promise
-  // service, awaits the promise to complete. For a machine service, awaits the
-  // service to reach its final state and return.
-  promise: Promise<unknown>;
-
-  status: "pending" | "settled";
-
-  // Some services (such as invoked machines) can be communicated with.
-  service: undefined | AnyService;
-};
-
-// Holds all state for an interpreted machine.
-export type FsmState<States extends object, Services, Actions, Context> = {
-  // Machine's current state.
-  value: KeyOf<States>;
-
-  // Any live services spawned by the machine.
-  spawnedServices: SpawnedService[];
-
-  context: Context;
-};
-
-export type AnyState = FsmState<any, any, any, any>;
-
-export type ApplyTransitionResult<
-  States extends object,
-  Services,
-  Actions,
-  Context
-> = {
-  value: FsmState<States, Services, Actions, Context>["value"];
-  actions: (keyof Actions)[];
-  services: ServiceInvocation<States, Services, Actions, Context>[];
-};
+// type FsmOptions = {
+//   States?: StateDefinitions<States, Services, Actions, Context>,
+// // States extends StateDefinitions<States, Services, Actions, Context>,
+// Services?: ServiceDefinitions<States, Services, Actions, Context>,
+// Actions?: ActionDefinitions<Actions, Context>,
+// Context?: object
+// }

@@ -1,5 +1,5 @@
 export const sleep = async (ms: number) =>
-  new Promise((res) => window.setTimeout(() => res(undefined), ms));
+  new Promise<void>((res) => setTimeout(() => res(undefined), ms));
 
 export const generateUUID = () => {
   // Public Domain/MIT
@@ -23,3 +23,6 @@ export const generateUUID = () => {
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
 };
+
+export const generateId = (prefix: string) =>
+  `${prefix}-${generateUUID().slice(0, 5)}`;

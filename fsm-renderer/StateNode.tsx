@@ -1,6 +1,7 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
 import { AnyStateDefinition } from "../fsm-ts/fsm-types";
+import type { GraphChangeDescription } from "./fsm-render-types";
 import styles from "./Nodes.module.css";
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
     isActive: boolean;
     width: number;
     height: number;
+    changeType: GraphChangeDescription["changeType"];
   };
 };
 
@@ -20,10 +22,12 @@ type Props = {
 export const StateNode = ({ data }: Props) => {
   //   const [vm, setVM] = React.useState(toViewModel(data));
   const { width, height, definition } = data;
-
+  // console.log(data.changeType);
   return (
     <div
-      className={`${styles.stateNode} ${data.isActive ? styles.isActive : ""}`}
+      className={`${styles.stateNode} ${data.isActive ? styles.isActive : ""} ${
+        styles[data.changeType]
+      }`}
       style={{ width, height: height }}
     >
       <div className={styles.title}>{data.value}</div>

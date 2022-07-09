@@ -64,6 +64,21 @@
   background-color: #c3a;
 }
 
+.added {
+  /* transition: all 500ms; */
+  opacity: 0.4;
+}
+
+.no-change {
+  transition: all 500ms;
+  opacity: 1;
+}
+
+.removed {
+  transition: all 500ms;
+  opacity: 0;
+}
+
 .stateNode .finalLabel {
   text-transform: uppercase;
   color: #555;

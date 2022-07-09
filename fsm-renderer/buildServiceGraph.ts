@@ -1,4 +1,3 @@
-import { AnyService } from "../fsm-ts/fsm-types";
 import ELK, { ElkEdge, ElkNode } from "elkjs";
 import { stateHasTransitions } from "../fsm-ts/fsm-type-guards";
 import {
@@ -6,8 +5,6 @@ import {
   stateTransitions,
 } from "../fsm-ts/fsm-transforms";
 import {
-  ElkNodeMetadata,
-  ElkNodeWithMetadata,
   guessStateNodeDimensions,
   guessTransitionNodeDimensions,
   mapElkNodeToReact,
@@ -17,6 +14,12 @@ import {
   transitionId,
 } from "./fsm-render-util";
 import { Edge, Node } from "react-flow-renderer";
+import type { AnyService } from "../fsm-ts/fsm-service-types";
+import type {
+  ElkNodeMetadata,
+  ElkNodeWithMetadata,
+  FsmRendererNode,
+} from "./fsm-render-types";
 
 const activeStateTransitions = (service: AnyService): ElkNodeWithMetadata[] => {
   const { machine, currentState } = service;
@@ -76,16 +79,18 @@ const activeStateNode = (service: AnyService): ElkNodeWithMetadata => {
   let serviceToUse = service;
 
   if (invokeMachine) {
-    const activeChildService = currentState.spawnedServices.find(
+    const activeChildService = Object.values(currentState.spawnedServices).find(
       (s) =>
         s.status === "pending" && s.service?.machine.id === invokeMachine.id
     );
 
-    if (activeChildService) {
-      serviceToUse = activeChildService.service!;
+    if (activeChildService && activeChildService.status === "pending") {
+      if (activeChildService) {
+        serviceToUse = activeChildService.service!;
 
-      children.push(...nodesForService(serviceToUse));
-      edges.push(...edgesForService(serviceToUse));
+        children.push(...nodesForService(serviceToUse));
+        edges.push(...edgesForService(serviceToUse));
+      }
     }
   }
 
@@ -188,21 +193,10 @@ export const buildServiceGraph = async (service: AnyService) => {
 
   //   console.log(JSON.stringify(layout, undefined, 2));
 
-  const nodes: Node[] = layout.children!.flatMap((child) => {
-    return mapElkNodeToReact(child as ElkNodeWithMetadata);
-  });
+  return layout as ElkNodeWithMetadata;
+  // const nodes: Node[] = layout.children!.flatMap((child) => {
+  //   return mapElkNodeToReact(child as FsmRendererNode);
+  // });
 
-  const edges: Edge[] = layout.edges!.map((edge) => {
-    const { id, sources, targets } = edge as any;
-
-    return {
-      id,
-      source: sources[0],
-      target: targets[0],
-      targetHandle: "target",
-      sourceHandle: "source",
-    };
-  });
-
-  return { nodes, edges };
+  // return { nodes, edges };
 };
