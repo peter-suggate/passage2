@@ -14,7 +14,7 @@ const PIECES = [
   "song of the wind",
 ];
 
-export const chooseRandomPieceMachine = createMachine({
+export const chooseRandomPieceMachine = createMachine<Context>({
   id: "choose random piece",
   initial: "fetching list",
   context: { piece: undefined, list: [] },

@@ -1,4 +1,3 @@
-import { KeyOf } from "./fsm-core-types";
 import {
   AnyServiceEvent,
   FsmListener,
@@ -8,40 +7,28 @@ import {
   PendingService,
   SpawnedService,
 } from "./fsm-service-types";
-import {
-  ActionDefinitions,
-  FsmMachine,
-  ServiceDefinitions,
-  StateDefinitions,
-  TransitionEvent,
-} from "./fsm-types";
+import { FsmMachine, FsmOptions, TransitionEvent } from "./fsm-types";
 import { processServiceEvent } from "./processServiceEvent";
 
-export const createService = <
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  InitialState extends KeyOf<States>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
->(
-  machine: FsmMachine<States, InitialState, Services, Actions, Context>,
-  optionsIn?: Partial<FsmServiceOptions>
-): FsmService<States, InitialState, Services, Actions, Context> => {
+export const createService = <Options extends FsmOptions>(
+  machine: FsmMachine<Options>,
+  optionsIn?: Partial<FsmServiceOptions<Options>>
+): FsmService<Options> => {
   const initialState = {
     value: machine.initial,
     context: machine.context,
     spawnedServices: {} as { [key: string]: SpawnedService },
   };
 
-  type ServiceEvent = FsmServiceEvent<States, Services, Actions, Context>;
+  type ServiceEvent = FsmServiceEvent<Options>;
 
   type DisposeSub = () => void;
   let listeners: FsmListener[] = [];
-  const notifyListeners = (event: AnyServiceEvent) => {
+  const notifyListeners = (event: ServiceEvent) => {
     listeners.forEach((listener) => listener(event));
   };
 
-  const options: FsmServiceOptions = {
+  const options: FsmServiceOptions<Options> = {
     stepper: async () => {},
 
     ...optionsIn,
@@ -112,7 +99,7 @@ export const createService = <
     transition: (transitionName: string, value: any) => {
       enqueueEvent({ type: "transition", name: transitionName, value });
     },
-    send: async (event: TransitionEvent<States, Actions>) => {
+    send: async (event: TransitionEvent<Options>) => {
       return self.transition(event.type, event.value);
     },
     resubscribeToSpawnedServices: () => {
@@ -121,13 +108,16 @@ export const createService = <
       Object.values(self.currentState.spawnedServices)
         .filter(
           (service) =>
-            service.status === "pending" &&
+            // service.status === "pending" &&
             !!(service as PendingService).service
         )
         .forEach((service) => {
+          console.warn("subscribed to service");
           spawnedServiceListeners.push(
             (service as PendingService).service!.subscribe((event) => {
-              notifyListeners(event);
+              console.warn("received event", event);
+              // We're notifying our listeners re a child service event.
+              notifyListeners(event as any);
             })
           );
         });

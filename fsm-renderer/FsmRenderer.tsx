@@ -10,8 +10,9 @@ import { TransitionNode } from "./TransitionNode";
 import { sleep } from "../fsm-ts/fsm-core-util";
 import { fsmToGraph, mapToReactFlow } from "./fsm-render-util";
 import { FsmRendererEdge, FsmRendererNode } from "./fsm-render-types";
+import { FsmEvent } from "../fsm-ts/fsm-types";
 
-const stepper = async () => sleep(500);
+const stepper = async (e: FsmEvent) => sleep(0);
 const service = createService(menuMachine, { stepper });
 service.start();
 

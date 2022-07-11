@@ -1,46 +1,101 @@
 import { KeyOf } from "./fsm-core-types";
 
-export type Transition<States extends object, Actions, Value = any> = {
+// export type FsmOptions<Options extends FsmOptions<Options, States>, States extends StateDefinitions<States, Options['Services'], Options['Actions'], Options['Context']>> = {
+//   States: States;
+//   InitialState: Options["InitialState"];
+//   Services: ServiceDefinitions<Options["Services"], Options["Context"]>; //Options["Services"];
+//   Actions: ActionDefinitions<Options["Actions"], Options["Context"]>; //Options["Actions"];
+//   Context: object; //Options["Context"];
+// };
+
+export type FsmOptions = {
+  States: StateDefinitions<any, any, any, any>;
+  // InitialState: any;
+  Services: ServiceDefinitions<any, any>;
+  Actions: ActionDefinitions<any, any>;
+  Context: ContextDefinition;
+};
+
+export type ContextDefinition = object;
+
+export type CreateFsmOptions<
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
+> = {
+  States: States;
+  InitialState: KeyOf<States>;
+  Services: Services;
+  Actions: Actions;
+  Context: Context;
+};
+
+export type Transition<
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition,
+  Value = any
+> = {
   target: KeyOf<States>;
   value: Value;
   actions: (keyof Actions)[];
 };
 
-export type TransitionEvent<States extends object, Actions> = {
+export type TransitionEvent<Options extends FsmOptions> = {
   type: string;
-} & Transition<States, Actions>;
+} & Transition<
+  Options["States"],
+  Options["Services"],
+  Options["Actions"],
+  Options["Context"]
+>;
 
 export type FsmEvent = { type: string; value?: any };
 
 export type FsmEventHandler = (event: FsmEvent) => void;
 
 export type ServiceInvocation<
-  States extends object,
-  Services,
-  Actions,
-  Context
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
 > = {
   src: keyof Services;
-  onDone: Transition<States, Actions>;
-  onError: Transition<States, Actions>;
+  onDone: Transition<States, Services, Actions, Context>;
+  onError: Transition<States, Services, Actions, Context>;
 };
 
-type StateDefinitionBase<States extends object, Services, Actions, Context> = {
-  entry?: keyof Actions;
+type StateDefinitionBase<
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
+> = {
+  entry?: KeyOf<Actions>;
   exit?: keyof Actions;
   invoke?: ServiceInvocation<States, Services, Actions, Context>;
 };
 
 export type AnyStateDefinition = StateDefinition<any, any, any, any>;
 
+export type AnyOptions = {
+  Actions: any;
+  Context: any;
+  InitialState: any;
+  Services: any;
+  States: any;
+};
+
 export type TransitionStateDefinition<
-  States extends object,
-  Services,
-  Actions,
-  Context
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
 > = {
   type?: "transition";
-  on?: { [transition: string]: Transition<States, Actions> };
+  on?: { [transition: string]: Transition<States, Services, Actions, Context> };
 } & StateDefinitionBase<States, Services, Actions, Context>;
 
 export type AnyTransitionStateDefinition = TransitionStateDefinition<
@@ -51,34 +106,42 @@ export type AnyTransitionStateDefinition = TransitionStateDefinition<
 >;
 
 export type FinalStateDefinition<
-  States extends object,
-  Services,
-  Actions,
-  Context
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
 > = {
   type: "final";
   data?: keyof Actions;
 } & StateDefinitionBase<States, Services, Actions, Context>;
 
 export type StateDefinition<
-  States extends object,
-  Services,
-  Actions,
-  Context
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
 > =
   | FinalStateDefinition<States, Services, Actions, Context>
   | TransitionStateDefinition<States, Services, Actions, Context>;
 
+export type StateDefinitionForOptions<Options extends FsmOptions> =
+  StateDefinition<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >;
+
 export type StateDefinitions<
-  States extends object,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions,
-  Context
+  States extends StateDefinitions<States, Services, Actions, Context>,
+  Services extends ServiceDefinitions<Services, Context>,
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
 > = {
   [S in keyof States]: StateDefinition<States, Services, Actions, Context>;
 };
 
-export type MachineServiceDefinition = FsmMachine<any, any, any, any, any>;
+export type MachineServiceDefinition = FsmMachine<AnyOptions>;
 
 export type PromiseServiceDefinition<Context> = (
   context: Context,
@@ -89,35 +152,24 @@ export type ServiceDefinition<Context> =
   | PromiseServiceDefinition<Context>
   | MachineServiceDefinition;
 
-export type ServiceDefinitions<States, Services, Actions, Context> = {
+export type ServiceDefinitions<Services, Context> = {
   [S in keyof Services]: ServiceDefinition<Context>;
 };
 
-export type ActionDefinitions<Actions, Context extends object = object> = {
+export type ActionDefinitions<
+  Actions extends ActionDefinitions<Actions, Context>,
+  Context extends ContextDefinition
+> = {
   [A in keyof Actions]: (context: Context, event: FsmEvent) => Partial<Context>;
 };
 
-export type FsmMachine<
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  InitialState extends keyof States,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
-> = {
+export type FsmMachine<Options extends FsmOptions> = {
   id: string;
-  initial: InitialState;
-  states: StateDefinitions<States, Services, Actions, Context>;
-  services: ServiceDefinitions<States, Services, Actions, Context>;
-  actions: ActionDefinitions<Actions, Context>;
-  context: Context;
+  initial: KeyOf<Options["States"]>;
+  states: Options["States"];
+  services: Options["Services"];
+  actions: Options["Actions"];
+  context: Options["Context"];
 };
 
-export type AnyMachine = FsmMachine<any, any, any, any, any>;
-
-// type FsmOptions = {
-//   States?: StateDefinitions<States, Services, Actions, Context>,
-// // States extends StateDefinitions<States, Services, Actions, Context>,
-// Services?: ServiceDefinitions<States, Services, Actions, Context>,
-// Actions?: ActionDefinitions<Actions, Context>,
-// Context?: object
-// }
+export type AnyMachine = FsmMachine<AnyOptions>;

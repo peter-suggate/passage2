@@ -1,7 +1,7 @@
 import { createMachine } from "./createMachine";
 import { createService } from "./createService";
 import { AnyServiceEvent } from "./fsm-service-types";
-import type { FsmEvent } from "./fsm-types";
+import type { FsmEvent, FsmMachine } from "./fsm-types";
 
 it("has expected initial state", () => {
   const machine = createMachine({
@@ -14,7 +14,7 @@ it("has expected initial state", () => {
   const service = createService(machine);
 
   expect(service.currentState).toEqual({
-    context: undefined,
+    context: {},
     value: "state",
     spawnedServices: {},
   });
@@ -29,7 +29,9 @@ it("updates current state upon transition", async () => {
           transition: { target: "state2" },
         },
       },
-      state2: {},
+      state2: {
+        type: "final",
+      },
     },
   });
 
@@ -66,6 +68,9 @@ it("invokes actions upon state entry and exit", async () => {
       state1Exit,
       state2Entry,
     },
+    // services: {
+    //   ad: 123,
+    // },
     context: { value: "context" },
   });
 
@@ -153,7 +158,10 @@ it("supports invoking a promise service", async () => {
     { type: "service created" },
     {
       type: "service started",
-      descriptor: { promise: promiseObject, status: "pending" },
+      descriptor: {
+        promise: promiseObject,
+        status: "pending",
+      },
     },
     { type: "service finished", result: "promise result" },
     { type: "transition", name: "onDone", value: "promise result" },
@@ -177,7 +185,7 @@ it("supports invoking a (child) machine", async () => {
     id: "child",
     initial: "retrieving todos",
     context: {
-      fetched: [],
+      fetched: [] as string[],
     },
     states: {
       "retrieving todos": {
@@ -195,7 +203,10 @@ it("supports invoking a (child) machine", async () => {
       },
     },
     actions: {
-      "return fetched": (context: ChildContext) => context.fetched,
+      "return fetched": (context: ChildContext) => ({
+        ...context,
+        fetched: context.fetched,
+      }),
       "store fetched": (context: ChildContext, event: FsmEvent) => ({
         ...context,
         fetched: event.value,
@@ -241,7 +252,7 @@ it("supports invoking a (child) machine", async () => {
   await service.tick();
 
   expect(listener.mock.calls.map((c) => c[0])).toMatchObject([
-    { type: "transition" },
+    { type: "transition", value: "loading" },
     { type: "entering state", value: "loading" },
     { type: "invoke service" },
     { type: "transitioned to new state" },
@@ -258,8 +269,9 @@ it("supports invoking a (child) machine", async () => {
   const spawnedChildMachine = Object.values(
     service.currentState.spawnedServices
   )[0];
-  spawnedChildMachine.status === "pending" &&
-    spawnedChildMachine.service?.transition("retrieved", TODOS);
+  // spawnedChildMachine.status === "pending" &&
+  console.log(spawnedChildMachine);
+  spawnedChildMachine.service?.transition("retrieved", TODOS);
 
   // Control is now in the child machine. Parent is waiting for child to reach its final state.
   listener.mockClear();

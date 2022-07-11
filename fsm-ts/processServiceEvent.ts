@@ -6,30 +6,32 @@ import type {
   AnyState,
   FsmService,
   FsmServiceEvent,
+  FsmState,
 } from "./fsm-service-types";
 import type {
   ActionDefinitions,
   FsmEvent,
+  FsmOptions,
   ServiceDefinitions,
   StateDefinitions,
 } from "./fsm-types";
 import { invokeService } from "./invokeService";
 
 const executeAction =
-  <Actions extends ActionDefinitions<Actions, Context>, Context extends object>(
-    actionDefinitions: ActionDefinitions<Actions, Context>,
-    context: Context,
+  <Options extends FsmOptions>(
+    actionDefinitions: Options["Actions"],
+    context: Options["Context"],
     event: FsmEvent
   ) =>
-  (action: keyof Actions) => {
+  (action: keyof Options["Actions"]) => {
     const newContext = actionDefinitions[action](context, event);
 
     return { ...context, ...newContext };
   };
 
-const updateServiceState = (
-  service: AnyService,
-  updates: Partial<AnyState>
+const updateServiceState = <Options extends FsmOptions>(
+  service: FsmService<Options>,
+  updates: Partial<FsmState<Options>>
 ) => {
   service.currentState = {
     ...service.currentState,
@@ -39,18 +41,10 @@ const updateServiceState = (
   service.resubscribeToSpawnedServices();
 };
 
-export const processServiceEvent = <
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  InitialState extends KeyOf<States>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
->(
-  service: FsmService<States, InitialState, Services, Actions, Context>,
-  event: FsmServiceEvent<States, Services, Actions, Context>,
-  enqueueEvent: (
-    event: FsmServiceEvent<States, Services, Actions, Context>
-  ) => void
+export const processServiceEvent = <Options extends FsmOptions>(
+  service: FsmService<Options>,
+  event: FsmServiceEvent<Options>,
+  enqueueEvent: (event: FsmServiceEvent<Options>) => void
 ) => {
   const { currentState, machine } = service;
 
@@ -81,12 +75,7 @@ export const processServiceEvent = <
       transitionResult.services
         .map(
           (invocation) =>
-            ({ type: "invoke service", invocation } as FsmServiceEvent<
-              States,
-              Services,
-              Actions,
-              Context
-            >)
+            ({ type: "invoke service", invocation } as FsmServiceEvent<Options>)
         )
         .map(enqueueEvent);
 
@@ -155,7 +144,8 @@ export const processServiceEvent = <
 
       // const updatedDescriptor = { ...descriptor };
 
-      const definition = machine.services[invocation.src as KeyOf<Services>];
+      const definition =
+        machine.services[invocation.src as KeyOf<Options["Services"]>];
 
       const descriptor = invokeService(
         service,
@@ -170,7 +160,7 @@ export const processServiceEvent = <
       enqueueEvent({
         type: "service started",
         id,
-        descriptor: { service: descriptor.service },
+        descriptor,
       });
 
       break;

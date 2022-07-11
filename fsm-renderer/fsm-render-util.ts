@@ -1,7 +1,10 @@
 import { ElkEdge, ElkNode } from "elkjs";
 import { Edge, Node } from "react-flow-renderer";
 import { AnyService } from "../fsm-ts/fsm-service-types";
-import type { StateDefinition } from "../fsm-ts/fsm-types";
+import type {
+  FsmOptions,
+  StateDefinitionForOptions,
+} from "../fsm-ts/fsm-types";
 import { buildServiceGraph } from "./buildServiceGraph";
 import type {
   ElkNodeWithMetadata,
@@ -13,14 +16,9 @@ import { graphDiff } from "./graphDiff";
 
 const fontWidth = () => 12;
 
-export const guessStateNodeDimensions = <
-  States extends object,
-  Services,
-  Actions,
-  Context
->(
+export const guessStateNodeDimensions = <Options extends FsmOptions>(
   id: string,
-  value: StateDefinition<States, Services, Actions, Context>
+  value: StateDefinitionForOptions<Options>
 ) => ({
   width: id.length * fontWidth(),
   height: 32,

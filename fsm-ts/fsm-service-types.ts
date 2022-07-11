@@ -1,21 +1,17 @@
 import { KeyOf } from "./fsm-core-types";
 import {
-  ActionDefinitions,
+  AnyOptions,
   FsmEvent,
   FsmMachine,
-  ServiceDefinitions,
+  FsmOptions,
   ServiceInvocation,
-  StateDefinitions,
 } from "./fsm-types";
 
-export type StepperFunc = (event: AnyServiceEvent) => Promise<void>;
+export type StepperFunc<Options extends FsmOptions> = (
+  event: FsmServiceEvent<Options>
+) => Promise<void>;
 
-export type FsmServiceEvent<
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
-> =
+export type FsmServiceEvent<Options extends FsmOptions> =
   | {
       type: "transition";
       name: string | null;
@@ -23,27 +19,45 @@ export type FsmServiceEvent<
     }
   | {
       type: "entering state";
-      value: KeyOf<States>;
+      value: KeyOf<Options["States"]>;
     }
   | {
       type: "exiting state";
-      value: KeyOf<States>;
+      value: KeyOf<Options["States"]>;
     }
   | {
       type: "transitioned to new state";
-      prevState: FsmState<States, Context>;
-      newState: FsmState<States, Context>;
+      prevState: FsmState<Options>;
+      newState: FsmState<Options>;
     }
-  | { type: "context updated"; prevContext: Context; newContext: Context }
-  | { type: "execute actions"; actions: (keyof Actions)[]; event: FsmEvent }
+  | {
+      type: "context updated";
+      prevContext: Options["Context"];
+      newContext: Options["Context"];
+    }
+  | {
+      type: "execute actions";
+      actions: (keyof Options["Actions"])[];
+      event: FsmEvent;
+    }
   | {
       type: "invoke service";
-      invocation: ServiceInvocation<States, Services, Actions, Context>;
+      invocation: ServiceInvocation<
+        Options["States"],
+        Options["Services"],
+        Options["Actions"],
+        Options["Context"]
+      >;
     }
   | {
       type: "service created";
       id: string;
-      invocation: ServiceInvocation<States, Services, Actions, Context>;
+      invocation: ServiceInvocation<
+        Options["States"],
+        Options["Services"],
+        Options["Actions"],
+        Options["Context"]
+      >;
     }
   | {
       type: "service started";
@@ -56,83 +70,68 @@ export type FsmServiceEvent<
       result: unknown;
     };
 
-export type AnyServiceEvent = FsmServiceEvent<any, any, any, any>;
-export type FsmListener = (e: AnyServiceEvent) => void;
+export type AnyServiceEvent = FsmServiceEvent<AnyOptions>;
+export type FsmListener = <Options extends FsmOptions>(
+  e: FsmServiceEvent<Options>
+) => void;
 
-export type FsmServiceOptions = {
-  stepper: StepperFunc;
+export type FsmServiceOptions<Options extends FsmOptions> = {
+  stepper: StepperFunc<Options>;
 };
 
-export type FsmService<
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  InitialState extends keyof States,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
-> = {
-  currentState: FsmState<States, Context>;
-  readonly machine: FsmMachine<
-    States,
-    InitialState,
-    Services,
-    Actions,
-    Context
-  >;
+export type FsmService<Options extends FsmOptions> = {
+  currentState: FsmState<Options>;
+  readonly machine: FsmMachine<Options>;
 
   subscribe: (listener: FsmListener) => () => void;
   start: () => void;
   transition: (transitionName: string, value?: any) => void;
   tick: () => Promise<void>;
 
-  options: FsmServiceOptions;
+  options: FsmServiceOptions<Options>;
 
   resubscribeToSpawnedServices(): void;
 };
 
-export type AnyService = FsmService<any, any, any, any, any>;
+export type AnyService = FsmService<AnyOptions>;
 
-export type SpawnedServiceCommon = {
+export type SpawnedServiceCommon<Options extends FsmOptions = AnyOptions> = {
   // Some services (such as invoked machines) can be communicated with.
-  service: undefined | AnyService;
+  service: undefined | FsmService<Options>;
 };
 
-export type PendingService = SpawnedServiceCommon & {
-  // Useful for awaiting the service to complete. For example, if this is a promise
-  // service, awaits the promise to complete. For a machine service, awaits the
-  // service to reach its final state and return.
-  promise: Promise<unknown>;
-
-  // Some services (such as invoked machines) can be communicated with.
-  service: undefined | AnyService;
-};
+export type PendingService = { status: "pending" } & SpawnedServiceCommon & {
+    // Useful for awaiting the service to complete. For example, if this is a promise
+    // service, awaits the promise to complete. For a machine service, awaits the
+    // service to reach its final state and return.
+    promise: Promise<unknown>;
+  };
 
 export type SpawnedService =
   | ({ status: "not started" } & SpawnedServiceCommon)
-  | ({ status: "pending" } & PendingService)
+  | PendingService
   | ({ status: "settled" } & SpawnedServiceCommon);
 
 // Holds all state for an interpreted machine.
-export type FsmState<States extends object, Context> = {
+export type FsmState<Options extends FsmOptions> = {
   // Machine's current state.
-  value: KeyOf<States>;
+  value: KeyOf<Options["States"]>;
 
   // Any live services spawned by the machine.
   spawnedServices: { [id: string]: SpawnedService };
 
-  context: Context;
+  context: Options["Context"];
 };
 
-export type AnyState = FsmState<any, any>;
+export type AnyState = FsmState<AnyOptions>;
 
-export type ApplyTransitionResult<
-  States extends object,
-  Services,
-  Actions,
-  Context
-> = {
-  value: FsmState<States, Context>["value"];
-  actions: (keyof Actions)[];
-  services: ServiceInvocation<States, Services, Actions, Context>[];
+export type ApplyTransitionResult<Options extends FsmOptions> = {
+  value: FsmState<Options>["value"];
+  actions: (keyof Options["Actions"])[];
+  services: ServiceInvocation<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >[];
 };
-
-// export type FsmServiceWorkFunc = () => FsmServiceEvent;

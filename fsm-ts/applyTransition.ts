@@ -4,21 +4,27 @@ import { stateHasTransitions } from "./fsm-type-guards";
 import {
   ActionDefinitions,
   FsmMachine,
+  FsmOptions,
   ServiceDefinitions,
   StateDefinition,
   StateDefinitions,
   Transition,
 } from "./fsm-types";
 
-const lookupTransition = <
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
->(
-  state: StateDefinition<States, Services, Actions, Context>,
+const lookupTransition = <Options extends FsmOptions>(
+  state: StateDefinition<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >,
   transitionName: string
-): Transition<States, Actions> => {
+): Transition<
+  Options["States"],
+  Options["Services"],
+  Options["Actions"],
+  Options["Context"]
+> => {
   if (!stateHasTransitions(state)) throw new Error("TODO handle me");
 
   if (transitionName === "onDone" && state.invoke?.onDone) {
@@ -35,19 +41,11 @@ const lookupTransition = <
 };
 
 export const applyTransition =
-  <
-    States extends StateDefinitions<States, Services, Actions, Context>,
-    InitialState extends KeyOf<States>,
-    Services extends ServiceDefinitions<States, Services, Actions, Context>,
-    Actions extends ActionDefinitions<Actions, Context>,
-    Context extends object
-  >(
-    machine: FsmMachine<States, InitialState, Services, Actions, Context>
-  ) =>
+  <Options extends FsmOptions>(machine: FsmMachine<Options>) =>
   (
-    state?: keyof States,
+    state?: keyof Options["States"],
     transitionName?: string | null
-  ): ApplyTransitionResult<States, Services, Actions, Context> => {
+  ): ApplyTransitionResult<Options> => {
     if (!state || !transitionName) {
       // Uninitialized state.
       const stateDefinition = machine.states[machine.initial];
@@ -60,19 +58,16 @@ export const applyTransition =
     }
 
     const currentState = machine.states[state];
-    if (!stateHasTransitions<States, Services, Actions, Context>(currentState))
+    if (!stateHasTransitions<Options>(currentState))
       throw new Error("TODO handle me");
 
-    const transition = lookupTransition<States, Services, Actions, Context>(
-      currentState,
-      transitionName
-    );
+    const transition = lookupTransition<Options>(currentState, transitionName);
     const { target, actions: transitionActions } = transition;
 
     const newState = machine.states[target];
 
     // Build a list of fire-and-forget actions that are executed during the transition.
-    const actions: (keyof Actions)[] = [];
+    const actions: (keyof Options["Actions"])[] = [];
 
     currentState.exit && actions.push(currentState.exit);
     transitionActions && actions.push(...transitionActions);

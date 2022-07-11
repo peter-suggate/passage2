@@ -4,36 +4,35 @@ import type {
   AnyService,
   FsmService,
   FsmServiceEvent,
+  FsmServiceOptions,
   FsmState,
   PendingService,
   SpawnedService,
 } from "./fsm-service-types";
 import {
   ActionDefinitions,
+  AnyOptions,
   FsmEvent,
+  FsmOptions,
   MachineServiceDefinition,
   PromiseServiceDefinition,
   ServiceDefinition,
-  ServiceDefinitions,
   ServiceInvocation,
-  StateDefinitions,
 } from "./fsm-types";
 
-const invokePromiseService = <
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
->(
-  currentState: FsmState<States, Context>,
+const invokePromiseService = <Options extends FsmOptions>(
+  currentState: FsmState<Options>,
   id: string,
-  definition: PromiseServiceDefinition<Context>,
-  invocation: ServiceInvocation<States, Services, Actions, Context>,
+  definition: PromiseServiceDefinition<Options["Context"]>,
+  invocation: ServiceInvocation<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >,
   event: FsmEvent,
-  enqueueEvent: (
-    event: FsmServiceEvent<States, Services, Actions, Context>
-  ) => void
-) => ({
+  enqueueEvent: (event: FsmServiceEvent<Options>) => void
+): PendingService => ({
   status: "pending",
   service: undefined,
   promise: definition(currentState.context, event)
@@ -67,23 +66,23 @@ const invokePromiseService = <
     }),
 });
 
-const invokeMachineService = <
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
->(
-  service: AnyService,
-  currentState: FsmState<States, Context>,
+const invokeMachineService = <Options extends FsmOptions>(
+  service: FsmService<Options>,
   id: string,
   machine: MachineServiceDefinition,
-  invocation: ServiceInvocation<States, Services, Actions, Context>,
-  event: FsmEvent,
-  enqueueEvent: (
-    event: FsmServiceEvent<States, Services, Actions, Context>
-  ) => void
-): SpawnedService => {
-  const childService = createService(machine, service.options);
+  invocation: ServiceInvocation<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >,
+  enqueueEvent: (event: FsmServiceEvent<Options>) => void
+): PendingService => {
+  const childService = createService<AnyOptions>(
+    machine,
+    // We're passing parent options down to child hence the cast
+    service.options as unknown as FsmServiceOptions<AnyOptions>
+  );
 
   return {
     status: "pending",
@@ -139,22 +138,20 @@ const invokeMachineService = <
   };
 };
 
-export const invokeService = <
-  States extends StateDefinitions<States, Services, Actions, Context>,
-  Services extends ServiceDefinitions<States, Services, Actions, Context>,
-  Actions extends ActionDefinitions<Actions, Context>,
-  Context extends object
->(
-  service: AnyService,
-  currentState: FsmState<States, Context>,
+export const invokeService = <Options extends FsmOptions>(
+  service: FsmService<Options>,
+  currentState: FsmState<Options>,
   id: string,
-  definition: ServiceDefinition<Context>,
-  invocation: ServiceInvocation<States, Services, Actions, Context>,
+  definition: ServiceDefinition<Options["Context"]>,
+  invocation: ServiceInvocation<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >,
   event: FsmEvent,
-  enqueueEvent: (
-    event: FsmServiceEvent<States, Services, Actions, Context>
-  ) => void
-) => {
+  enqueueEvent: (event: FsmServiceEvent<Options>) => void
+): PendingService => {
   if (typeof definition === "function") {
     return invokePromiseService(
       currentState,
@@ -167,11 +164,9 @@ export const invokeService = <
   } else {
     return invokeMachineService(
       service,
-      currentState,
       id,
       definition,
       invocation,
-      event,
       enqueueEvent
     );
   }
