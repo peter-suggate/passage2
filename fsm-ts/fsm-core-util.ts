@@ -26,3 +26,7 @@ export const generateUUID = () => {
 
 export const generateId = (prefix: string) =>
   `${prefix}-${generateUUID().slice(0, 5)}`;
+
+export const assert = (cond: any, reason?: string) => {
+  if (!cond) throw new Error("Assertion failed." + reason ? " " + reason : "");
+};

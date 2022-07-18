@@ -1,13 +1,5 @@
 import { KeyOf } from "./fsm-core-types";
 
-// export type FsmOptions<Options extends FsmOptions<Options, States>, States extends StateDefinitions<States, Options['Services'], Options['Actions'], Options['Context']>> = {
-//   States: States;
-//   InitialState: Options["InitialState"];
-//   Services: ServiceDefinitions<Options["Services"], Options["Context"]>; //Options["Services"];
-//   Actions: ActionDefinitions<Options["Actions"], Options["Context"]>; //Options["Actions"];
-//   Context: object; //Options["Context"];
-// };
-
 export type FsmOptions = {
   States: StateDefinitions<any, any, any, any>;
   // InitialState: any;
@@ -43,14 +35,17 @@ export type Transition<
   actions: (keyof Actions)[];
 };
 
+export type TransitionDefinitionForOptions<Options extends FsmOptions> =
+  Transition<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >;
+
 export type TransitionEvent<Options extends FsmOptions> = {
   type: string;
-} & Transition<
-  Options["States"],
-  Options["Services"],
-  Options["Actions"],
-  Options["Context"]
->;
+} & TransitionDefinitionForOptions<Options>;
 
 export type FsmEvent = { type: string; value?: any };
 
@@ -83,9 +78,14 @@ export type AnyStateDefinition = StateDefinition<any, any, any, any>;
 export type AnyOptions = {
   Actions: any;
   Context: any;
-  InitialState: any;
+  // InitialState: any;
   Services: any;
-  States: any;
+  States: StateDefinitions<
+    any,
+    AnyOptions["Services"],
+    AnyOptions["Actions"],
+    AnyOptions["Context"]
+  >;
 };
 
 export type TransitionStateDefinition<

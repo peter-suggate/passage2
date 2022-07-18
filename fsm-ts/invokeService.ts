@@ -1,16 +1,12 @@
-import { getAnyFinalStateDataValue } from "./applyEffects";
-import { createService } from "./createService";
+import { generateId } from "./fsm-core-util";
 import type {
-  AnyService,
-  FsmService,
-  FsmServiceEvent,
-  FsmServiceOptions,
+  FsmRunningMachine,
   FsmState,
   PendingService,
-  SpawnedService,
+  FsmInterpreterCommand,
+  FsmServiceId,
 } from "./fsm-service-types";
-import {
-  ActionDefinitions,
+import type {
   AnyOptions,
   FsmEvent,
   FsmOptions,
@@ -19,155 +15,126 @@ import {
   ServiceDefinition,
   ServiceInvocation,
 } from "./fsm-types";
+import { runMachine } from "./runMachine";
+
+type ServiceInvocationFromOptions<Options extends FsmOptions> =
+  ServiceInvocation<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >;
 
 const invokePromiseService = <Options extends FsmOptions>(
   currentState: FsmState<Options>,
   id: string,
   definition: PromiseServiceDefinition<Options["Context"]>,
-  invocation: ServiceInvocation<
-    Options["States"],
-    Options["Services"],
-    Options["Actions"],
-    Options["Context"]
-  >,
-  event: FsmEvent,
-  enqueueEvent: (event: FsmServiceEvent<Options>) => void
-): PendingService => ({
-  status: "pending",
-  service: undefined,
-  promise: definition(currentState.context, event)
+  invocation: ServiceInvocationFromOptions<Options>,
+  event: FsmEvent
+): [
+  PendingService,
+  undefined | FsmRunningMachine<AnyOptions>,
+  FsmServiceId
+] => {
+  const promise = definition(currentState.context, event)
     .then((value) => {
-      enqueueEvent({
-        type: "service finished",
-        id,
-        result: value,
-      });
+      const newCommands: FsmInterpreterCommand<AnyOptions>[] = [
+        {
+          type: "exit child service",
+          id: currentState.id,
+          child: id,
+          // result: value,
+        },
+      ];
 
       invocation.onDone &&
-        enqueueEvent({
+        newCommands.push({
+          id: currentState.id,
           type: "transition",
           name: "onDone",
           value,
         });
+
+      return newCommands;
     })
     .catch((error) => {
-      enqueueEvent({
-        type: "service finished",
-        id,
-        result: error,
-      });
+      const newCommands: FsmInterpreterCommand<AnyOptions>[] = [
+        {
+          type: "exit child service",
+          id: currentState.id,
+          child: id,
+          // result: error,
+        },
+      ];
 
       invocation.onError &&
-        enqueueEvent({
+        newCommands.push({
           type: "transition",
+          id: currentState.id,
           name: "onError",
           value: error,
         });
-    }),
-});
+
+      return newCommands;
+    });
+
+  return [
+    {
+      status: "pending",
+      service: undefined,
+      promise,
+    },
+    undefined,
+    id,
+  ];
+};
 
 const invokeMachineService = <Options extends FsmOptions>(
-  service: FsmService<Options>,
-  id: string,
   machine: MachineServiceDefinition,
-  invocation: ServiceInvocation<
-    Options["States"],
-    Options["Services"],
-    Options["Actions"],
-    Options["Context"]
-  >,
-  enqueueEvent: (event: FsmServiceEvent<Options>) => void
-): PendingService => {
-  const childService = createService<AnyOptions>(
-    machine,
-    // We're passing parent options down to child hence the cast
-    service.options as unknown as FsmServiceOptions<AnyOptions>
+  parent: FsmServiceId
+): [
+  PendingService,
+  undefined | FsmRunningMachine<AnyOptions>,
+  FsmServiceId
+] => {
+  const child = runMachine(machine, parent);
+
+  const promise = new Promise<FsmInterpreterCommand<AnyOptions>[]>((resolve) =>
+    resolve([])
   );
 
-  return {
-    status: "pending",
-    service: childService,
-    promise: new Promise((resolve, reject) => {
-      // const machine = definition as AnyMachine;
-
-      // const childService =
-      // descriptor.service = childService;
-
-      const disposer = childService.subscribe(() => {
-        const finalState = Object.keys(machine.states).find(
-          (state) => machine.states[state].type === "final"
-        );
-
-        if (!finalState) {
-          throw new Error(
-            "Machine has no final state and therefore cannot be exited."
-          );
-        }
-
-        if (childService.currentState.value === finalState) {
-          let valueReturnedFromChild = getAnyFinalStateDataValue(
-            childService,
-            finalState
-          );
-
-          enqueueEvent({
-            type: "service finished",
-            id,
-            result: valueReturnedFromChild,
-          });
-
-          // TODO if the final state has a data() func we call it (passing in context and event?)
-          // and pass resulting data as value to onSendEvent somehow..
-          invocation.onDone &&
-            enqueueEvent({
-              type: "transition",
-              name: "onDone",
-              value: valueReturnedFromChild,
-            });
-
-          resolve(childService.currentState);
-
-          disposer();
-        }
-
-        // TODO handle onError. How?
-      });
-
-      childService.start();
-    }),
-  };
+  return [
+    {
+      status: "pending",
+      service: child.state.id,
+      promise,
+    },
+    child,
+    child.state.id,
+  ];
 };
 
 export const invokeService = <Options extends FsmOptions>(
-  service: FsmService<Options>,
   currentState: FsmState<Options>,
-  id: string,
   definition: ServiceDefinition<Options["Context"]>,
-  invocation: ServiceInvocation<
-    Options["States"],
-    Options["Services"],
-    Options["Actions"],
-    Options["Context"]
-  >,
-  event: FsmEvent,
-  enqueueEvent: (event: FsmServiceEvent<Options>) => void
-): PendingService => {
+  invocation: ServiceInvocationFromOptions<Options>,
+  event: FsmEvent
+): [
+  PendingService,
+  undefined | FsmRunningMachine<AnyOptions>,
+  FsmServiceId
+] => {
   if (typeof definition === "function") {
+    const newServiceId = generateId(invocation.src as string);
+
     return invokePromiseService(
       currentState,
-      id,
+      newServiceId,
       definition,
       invocation,
-      event,
-      enqueueEvent
+      event
     );
   } else {
-    return invokeMachineService(
-      service,
-      id,
-      definition,
-      invocation,
-      enqueueEvent
-    );
+    return invokeMachineService(definition, currentState.id);
   }
 };

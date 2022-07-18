@@ -1,4 +1,4 @@
-import { KeyOf } from "./fsm-core-types";
+import { DeepReadonly, KeyOf } from "./fsm-core-types";
 import {
   AnyOptions,
   FsmEvent,
@@ -8,79 +8,78 @@ import {
 } from "./fsm-types";
 
 export type StepperFunc<Options extends FsmOptions> = (
-  event: FsmServiceEvent<Options>
+  event: FsmInterpreterEvent<Options>
 ) => Promise<void>;
 
-export type FsmServiceEvent<Options extends FsmOptions> =
-  | {
-      type: "transition";
-      name: string | null;
-      value: any;
-    }
-  | {
-      type: "entering state";
-      value: KeyOf<Options["States"]>;
-    }
-  | {
-      type: "exiting state";
-      value: KeyOf<Options["States"]>;
-    }
-  | {
-      type: "transitioned to new state";
-      prevState: FsmState<Options>;
-      newState: FsmState<Options>;
-    }
-  | {
-      type: "context updated";
-      prevContext: Options["Context"];
-      newContext: Options["Context"];
-    }
-  | {
-      type: "execute actions";
-      actions: (keyof Options["Actions"])[];
-      event: FsmEvent;
-    }
-  | {
-      type: "invoke service";
-      invocation: ServiceInvocation<
-        Options["States"],
-        Options["Services"],
-        Options["Actions"],
-        Options["Context"]
-      >;
-    }
-  | {
-      type: "service created";
-      id: string;
-      invocation: ServiceInvocation<
-        Options["States"],
-        Options["Services"],
-        Options["Actions"],
-        Options["Context"]
-      >;
-    }
-  | {
-      type: "service started";
-      id: string;
-      descriptor: SpawnedServiceCommon;
-    }
-  | {
-      type: "service finished";
-      id: string;
-      result: unknown;
-    };
+export type FsmEffect = () => Promise<FsmInterpreterCommand<AnyOptions>[]>;
 
-export type AnyServiceEvent = FsmServiceEvent<AnyOptions>;
+export type FsmInterpreterCommand<Options extends FsmOptions> =
+  | {
+      type: "instantiate";
+      machine: FsmMachine<Options>;
+      parent: FsmServiceId | undefined;
+    }
+  | ({
+      id: FsmServiceId;
+    } & (
+      | {
+          type: "transition";
+          name: string | null;
+          value?: any;
+        }
+      | {
+          type: "invoke service";
+          invocation: ServiceInvocation<
+            Options["States"],
+            Options["Services"],
+            Options["Actions"],
+            Options["Context"]
+          >;
+        }
+      | {
+          type: "execute actions";
+          actions: (keyof Options["Actions"])[];
+          event: FsmEvent;
+        }
+      | {
+          type: "enter state";
+          value: KeyOf<Options["States"]>;
+        }
+      | {
+          type: "exit state";
+          value: KeyOf<Options["States"]>;
+        }
+      | {
+          type: "exit child service";
+          child: FsmServiceId;
+          // result: unknown;
+        }
+    ));
+
+export type FsmInterpreterEvent<Options extends FsmOptions> = {
+  id: FsmServiceId;
+} & {
+  type: "context updated";
+  prevContext: Options["Context"];
+  newContext: Options["Context"];
+};
+
+export type AnyServiceEvent = FsmInterpreterEvent<AnyOptions>;
 export type FsmListener = <Options extends FsmOptions>(
-  e: FsmServiceEvent<Options>
+  e: DeepReadonly<FsmInterpreterEvent<Options> | FsmInterpreterCommand<Options>>
 ) => void;
 
 export type FsmServiceOptions<Options extends FsmOptions> = {
   stepper: StepperFunc<Options>;
 };
 
+export type FsmRunningMachine<Options extends FsmOptions> = {
+  readonly state: FsmState<Options>;
+  readonly machine: FsmMachine<Options>;
+};
+
 export type FsmService<Options extends FsmOptions> = {
-  currentState: FsmState<Options>;
+  state: FsmState<Options>;
   readonly machine: FsmMachine<Options>;
 
   subscribe: (listener: FsmListener) => () => void;
@@ -95,32 +94,38 @@ export type FsmService<Options extends FsmOptions> = {
 
 export type AnyService = FsmService<AnyOptions>;
 
-export type SpawnedServiceCommon<Options extends FsmOptions = AnyOptions> = {
+export type FsmServiceId = string;
+
+export type SpawnedServiceCommon = {
   // Some services (such as invoked machines) can be communicated with.
-  service: undefined | FsmService<Options>;
+  service: undefined | FsmServiceId; // FsmService<Options>;
 };
 
 export type PendingService = { status: "pending" } & SpawnedServiceCommon & {
     // Useful for awaiting the service to complete. For example, if this is a promise
     // service, awaits the promise to complete. For a machine service, awaits the
     // service to reach its final state and return.
-    promise: Promise<unknown>;
+    promise: Promise<FsmInterpreterCommand<AnyOptions>[]>;
   };
 
 export type SpawnedService =
-  | ({ status: "not started" } & SpawnedServiceCommon)
-  | PendingService
-  | ({ status: "settled" } & SpawnedServiceCommon);
+  // | ({ status: "not started" } & SpawnedServiceCommon)
+  PendingService | ({ status: "settled" } & SpawnedServiceCommon);
 
 // Holds all state for an interpreted machine.
 export type FsmState<Options extends FsmOptions> = {
+  id: FsmServiceId;
+
   // Machine's current state.
   value: KeyOf<Options["States"]>;
 
-  // Any live services spawned by the machine.
-  spawnedServices: { [id: string]: SpawnedService };
+  // Any children (promises, services, etc) spawned by the machine.
+  children: FsmChildren;
 
   context: Options["Context"];
+
+  // Id of parent if a child machine.
+  parent: FsmServiceId | undefined;
 };
 
 export type AnyState = FsmState<AnyOptions>;
@@ -134,4 +139,27 @@ export type ApplyTransitionResult<Options extends FsmOptions> = {
     Options["Actions"],
     Options["Context"]
   >[];
+};
+
+export type FsmRunningMachines = Map<
+  FsmServiceId,
+  FsmRunningMachine<AnyOptions>
+>;
+
+export type FsmChildren = Map<FsmServiceId, SpawnedService>;
+
+export type FsmInterpreter = {
+  run: <Options extends FsmOptions>(
+    parent: FsmMachine<Options>
+  ) => FsmRunningMachine<Options>;
+  updateMachineState: <Options extends FsmOptions>(
+    serviceId: FsmServiceId,
+    updates: Partial<FsmState<Options>>
+  ) => void;
+  enqueueEvent: <Options extends FsmOptions>(
+    event: DeepReadonly<FsmInterpreterEvent<Options>>
+  ) => void;
+  subscribe: (listener: FsmListener) => () => void;
+  get: (id: FsmServiceId) => FsmRunningMachine<AnyOptions> | undefined;
+  tick: () => Promise<FsmInterpreterEvent<AnyOptions>[]>;
 };

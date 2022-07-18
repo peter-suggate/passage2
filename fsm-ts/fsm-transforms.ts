@@ -1,7 +1,7 @@
+import { AnyState } from "./fsm-service-types";
 import { isMachineService, stateHasTransitions } from "./fsm-type-guards";
 import {
   AnyMachine,
-  AnyState,
   AnyTransitionStateDefinition,
   MachineServiceDefinition,
 } from "./fsm-types";
@@ -51,6 +51,11 @@ export const machineTransitions = (machine: AnyMachine, invokeOnly?: boolean) =>
     .flatMap(([id, state]) =>
       stateTransitions(id, state as AnyTransitionStateDefinition, invokeOnly)
     );
+
+export const machineFinalState = (machine: AnyMachine, invokeOnly?: boolean) =>
+  Object.keys(machine.states).find(
+    (state) => machine.states[state].type === "final"
+  );
 
 export const invokableMachineForState = (
   machine: AnyMachine,

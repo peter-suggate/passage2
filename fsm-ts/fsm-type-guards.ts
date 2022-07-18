@@ -2,17 +2,12 @@ import {
   FsmOptions,
   MachineServiceDefinition,
   ServiceDefinition,
-  StateDefinition,
+  StateDefinitionForOptions,
   TransitionStateDefinition,
 } from "./fsm-types";
 
 export const stateHasTransitions = <Options extends FsmOptions>(
-  state: StateDefinition<
-    Options["States"],
-    Options["Services"],
-    Options["Actions"],
-    Options["Context"]
-  >
+  state: StateDefinitionForOptions<Options>
 ): state is TransitionStateDefinition<
   Options["States"],
   Options["Services"],

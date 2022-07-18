@@ -1,30 +1,16 @@
-import { KeyOf } from "./fsm-core-types";
 import { ApplyTransitionResult } from "./fsm-service-types";
 import { stateHasTransitions } from "./fsm-type-guards";
 import {
-  ActionDefinitions,
   FsmMachine,
   FsmOptions,
-  ServiceDefinitions,
-  StateDefinition,
-  StateDefinitions,
-  Transition,
+  StateDefinitionForOptions,
+  TransitionDefinitionForOptions,
 } from "./fsm-types";
 
 const lookupTransition = <Options extends FsmOptions>(
-  state: StateDefinition<
-    Options["States"],
-    Options["Services"],
-    Options["Actions"],
-    Options["Context"]
-  >,
+  state: StateDefinitionForOptions<Options>,
   transitionName: string
-): Transition<
-  Options["States"],
-  Options["Services"],
-  Options["Actions"],
-  Options["Context"]
-> => {
+): TransitionDefinitionForOptions<Options> => {
   if (!stateHasTransitions(state)) throw new Error("TODO handle me");
 
   if (transitionName === "onDone" && state.invoke?.onDone) {
@@ -57,9 +43,11 @@ export const applyTransition =
       };
     }
 
-    const currentState = machine.states[state];
+    const currentState = machine.states[
+      state
+    ] as StateDefinitionForOptions<Options>;
     if (!stateHasTransitions<Options>(currentState))
-      throw new Error("TODO handle me");
+      throw new Error("TODO handle me: " + JSON.stringify(currentState));
 
     const transition = lookupTransition<Options>(currentState, transitionName);
     const { target, actions: transitionActions } = transition;

@@ -1,8 +1,8 @@
-import { AnyService } from "./fsm-service-types";
-import { FinalStateDefinition, FsmOptions } from "./fsm-types";
+import { FsmRunningMachine } from "./fsm-service-types";
+import { AnyOptions, FinalStateDefinition, FsmOptions } from "./fsm-types";
 
 export const getAnyFinalStateDataValue = <Options extends FsmOptions>(
-  childService: AnyService,
+  childService: FsmRunningMachine<AnyOptions>,
   finalState: string
 ) => {
   const finalStateDefinition = childService.machine.states[
@@ -17,9 +17,10 @@ export const getAnyFinalStateDataValue = <Options extends FsmOptions>(
   let valueReturnedFromChild = undefined;
   if (finalStateDefinition.data) {
     const finalAction = childService.machine.actions[finalStateDefinition.data];
-    valueReturnedFromChild = finalAction(childService.currentState.context, {
+    valueReturnedFromChild = finalAction(childService.state.context, {
       type: "data",
     });
   }
+
   return valueReturnedFromChild;
 };
