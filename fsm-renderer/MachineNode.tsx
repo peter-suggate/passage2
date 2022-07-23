@@ -1,6 +1,6 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
-import { AnyService } from "../fsm-ts/fsm-types";
+import { ElkNodeMetadata } from "./fsm-render-types";
 import { MachineContext } from "./MachineContext";
 import styles from "./Nodes.module.css";
 
@@ -11,7 +11,7 @@ type Props = {
     hasChildren: boolean;
     width: number;
     height: number;
-    service: AnyService;
+    metadata: ElkNodeMetadata;
   };
 };
 
@@ -22,8 +22,9 @@ type Props = {
 export const MachineNode = ({ data }: Props) => {
   // const [vm, setVM] = React.useState(toViewModel(data));
 
-  const { width, height, service } = data;
+  const { width, height, metadata } = data;
 
+  console.warn("metadata", metadata);
   // React.useEffect(() => {
   //   const disposer = service.subscribe(() => {
   //     setVM(toViewModel(data));
@@ -46,7 +47,9 @@ export const MachineNode = ({ data }: Props) => {
       <Handle type="source" position={Position.Right} id="parent" /> */}
       <Handle type="source" position={Position.Bottom} id="source" />
       <Handle type="target" position={Position.Top} id="target" />
-      <MachineContext context={service.currentState.context} />
+      <MachineContext
+        context={metadata.type === "machine" && metadata.instance.state.context}
+      />
     </div>
   );
 };

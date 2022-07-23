@@ -1,13 +1,14 @@
 import { getAnyFinalStateDataValue } from "./applyEffects";
 import { applyTransition } from "./applyTransition";
+import { DeepReadonly, KeyOf } from "./fsm-core-types";
 import type {
   FsmEffect,
-  FsmInterpreterCommand,
+  FsmCommand,
   FsmRunningMachine,
   FsmRunningMachines,
   FsmServiceId,
   FsmState,
-} from "./fsm-service-types";
+} from "./fsm-system-types";
 import { machineFinalState } from "./fsm-transforms";
 import { AnyOptions, FsmEvent, FsmOptions } from "./fsm-types";
 import { invokeService } from "./invokeService";
@@ -19,22 +20,22 @@ const executeAction =
     context: Options["Context"],
     event: FsmEvent
   ) =>
-  (action: keyof Options["Actions"]) => {
+  (action: KeyOf<Options["Actions"]>) => {
     const newContext = actionDefinitions[action](context, event);
 
     return { ...context, ...newContext };
   };
 
 export const processCommand = <Options extends FsmOptions>(
-  command: FsmInterpreterCommand<Options>,
+  command: FsmCommand<Options>,
   instances: FsmRunningMachines
 ): {
   updatedInstances: FsmRunningMachines;
-  newCommands: FsmInterpreterCommand<Options>[];
+  newCommands: FsmCommand<Options>[];
   newEffects: FsmEffect[];
 } => {
   const updatedInstances: FsmRunningMachines = new Map(instances);
-  const newCommands: FsmInterpreterCommand<Options>[] = [];
+  const newCommands: FsmCommand<Options>[] = [];
   const newEffects: FsmEffect[] = [];
 
   // assert(
@@ -118,7 +119,7 @@ export const processCommand = <Options extends FsmOptions>(
               type: "invoke service",
               id,
               invocation,
-            } as FsmInterpreterCommand<Options>)
+            } as FsmCommand<Options>)
         )
       );
 
@@ -126,7 +127,6 @@ export const processCommand = <Options extends FsmOptions>(
       const finalState = machineFinalState(machine);
       if (transitionResult.value === finalState && state.parent) {
         const child = instances.get(command.id)!;
-        console.warn("child context", child.state.context);
         // let valueReturnedFromChild = getAnyFinalStateDataValue<Options>(
         //   child,
         //   finalState
@@ -176,12 +176,8 @@ export const processCommand = <Options extends FsmOptions>(
 
       const definition = machine.services[invocation.src];
 
-      const [descriptor, newInstance, newServiceId] = invokeService<Options>(
-        state,
-        definition,
-        invocation,
-        command
-      );
+      const [descriptor, newInstance, newServiceId, newEffect] =
+        invokeService<Options>(state, definition, invocation, command);
 
       updateMachineStateImpl(id, {
         children: new Map(state.children).set(newServiceId, { ...descriptor }),
@@ -195,6 +191,8 @@ export const processCommand = <Options extends FsmOptions>(
           id: newInstance.state.id,
           name: null,
         });
+
+      newEffect && newEffects.push(newEffect);
 
       break;
     }

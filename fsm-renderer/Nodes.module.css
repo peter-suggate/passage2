@@ -65,8 +65,8 @@
 }
 
 .added {
-  /* transition: all 500ms; */
-  opacity: 0.4;
+  transition: all 500ms;
+  /* opacity: 0.4; */
 }
 
 .no-change {

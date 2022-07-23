@@ -1,4 +1,4 @@
-import { KeyOf } from "./fsm-core-types";
+import { DeepReadonly, KeyOf } from "./fsm-core-types";
 
 export type FsmOptions = {
   States: StateDefinitions<any, any, any, any>;
@@ -32,7 +32,7 @@ export type Transition<
 > = {
   target: KeyOf<States>;
   value: Value;
-  actions: (keyof Actions)[];
+  actions: KeyOf<Actions>[];
 };
 
 export type TransitionDefinitionForOptions<Options extends FsmOptions> =
@@ -57,7 +57,7 @@ export type ServiceInvocation<
   Actions extends ActionDefinitions<Actions, Context>,
   Context extends ContextDefinition
 > = {
-  src: keyof Services;
+  src: KeyOf<Services>;
   onDone: Transition<States, Services, Actions, Context>;
   onError: Transition<States, Services, Actions, Context>;
 };
@@ -69,7 +69,7 @@ type StateDefinitionBase<
   Context extends ContextDefinition
 > = {
   entry?: KeyOf<Actions>;
-  exit?: keyof Actions;
+  exit?: KeyOf<Actions>;
   invoke?: ServiceInvocation<States, Services, Actions, Context>;
 };
 
@@ -112,7 +112,7 @@ export type FinalStateDefinition<
   Context extends ContextDefinition
 > = {
   type: "final";
-  data?: keyof Actions;
+  data?: KeyOf<Actions>;
 } & StateDefinitionBase<States, Services, Actions, Context>;
 
 export type StateDefinition<
@@ -160,10 +160,13 @@ export type ActionDefinitions<
   Actions extends ActionDefinitions<Actions, Context>,
   Context extends ContextDefinition
 > = {
-  [A in keyof Actions]: (context: Context, event: FsmEvent) => Partial<Context>;
+  [A in KeyOf<Actions>]: (
+    context: Context,
+    event: FsmEvent
+  ) => Partial<Context>;
 };
 
-export type FsmMachine<Options extends FsmOptions> = {
+export type MachineDefinition<Options extends FsmOptions> = {
   id: string;
   initial: KeyOf<Options["States"]>;
   states: Options["States"];
@@ -171,5 +174,9 @@ export type FsmMachine<Options extends FsmOptions> = {
   actions: Options["Actions"];
   context: Options["Context"];
 };
+
+export type FsmMachine<Options extends FsmOptions> = DeepReadonly<
+  MachineDefinition<Options>
+>;
 
 export type AnyMachine = FsmMachine<AnyOptions>;

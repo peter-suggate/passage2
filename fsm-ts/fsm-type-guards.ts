@@ -1,3 +1,4 @@
+import { DeepReadonly } from "./fsm-core-types";
 import {
   FsmOptions,
   MachineServiceDefinition,
@@ -7,12 +8,14 @@ import {
 } from "./fsm-types";
 
 export const stateHasTransitions = <Options extends FsmOptions>(
-  state: StateDefinitionForOptions<Options>
-): state is TransitionStateDefinition<
-  Options["States"],
-  Options["Services"],
-  Options["Actions"],
-  Options["Context"]
+  state: DeepReadonly<StateDefinitionForOptions<Options>>
+): state is DeepReadonly<
+  TransitionStateDefinition<
+    Options["States"],
+    Options["Services"],
+    Options["Actions"],
+    Options["Context"]
+  >
 > => {
   return state.type !== "final";
 };

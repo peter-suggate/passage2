@@ -4,6 +4,7 @@ import {
   FsmEvent,
   FsmMachine,
   FsmOptions,
+  MachineDefinition,
   ServiceInvocation,
 } from "./fsm-types";
 
@@ -11,13 +12,18 @@ export type StepperFunc<Options extends FsmOptions> = (
   event: FsmInterpreterEvent<Options>
 ) => Promise<void>;
 
-export type FsmEffect = () => Promise<FsmInterpreterCommand<AnyOptions>[]>;
+export type FsmEffect = {
+  parent: FsmServiceId;
+  id: FsmServiceId;
+  name: string;
+  execute: () => Promise<FsmCommand<AnyOptions>[]>;
+};
 
-export type FsmInterpreterCommand<Options extends FsmOptions> =
+type InterpreterCommand<Options extends FsmOptions> =
   | {
       type: "instantiate";
-      machine: FsmMachine<Options>;
-      parent: FsmServiceId | undefined;
+      machine: MachineDefinition<Options>;
+      parent?: FsmServiceId | null;
     }
   | ({
       id: FsmServiceId;
@@ -38,7 +44,7 @@ export type FsmInterpreterCommand<Options extends FsmOptions> =
         }
       | {
           type: "execute actions";
-          actions: (keyof Options["Actions"])[];
+          actions: KeyOf<Options["Actions"]>[];
           event: FsmEvent;
         }
       | {
@@ -56,6 +62,10 @@ export type FsmInterpreterCommand<Options extends FsmOptions> =
         }
     ));
 
+export type FsmCommand<Options extends FsmOptions> = DeepReadonly<
+  InterpreterCommand<Options>
+>;
+
 export type FsmInterpreterEvent<Options extends FsmOptions> = {
   id: FsmServiceId;
 } & {
@@ -64,9 +74,16 @@ export type FsmInterpreterEvent<Options extends FsmOptions> = {
   newContext: Options["Context"];
 };
 
+export type FsmRep = Readonly<[FsmSystemData, FsmCommand<AnyOptions>[]]>;
+
 export type AnyServiceEvent = FsmInterpreterEvent<AnyOptions>;
 export type FsmListener = <Options extends FsmOptions>(
-  e: DeepReadonly<FsmInterpreterEvent<Options> | FsmInterpreterCommand<Options>>
+  e: DeepReadonly<FsmInterpreterEvent<Options> | FsmCommand<Options>>,
+  latest: FsmSystemData
+) => void;
+export type FsmCommandListener = <Options extends FsmOptions>(
+  e: DeepReadonly<FsmCommand<Options>>,
+  latest: FsmSystemData
 ) => void;
 
 export type FsmServiceOptions<Options extends FsmOptions> = {
@@ -77,6 +94,8 @@ export type FsmRunningMachine<Options extends FsmOptions> = {
   readonly state: FsmState<Options>;
   readonly machine: FsmMachine<Options>;
 };
+
+export type AnyRunningMachine = FsmRunningMachine<AnyOptions>;
 
 export type FsmService<Options extends FsmOptions> = {
   state: FsmState<Options>;
@@ -105,7 +124,7 @@ export type PendingService = { status: "pending" } & SpawnedServiceCommon & {
     // Useful for awaiting the service to complete. For example, if this is a promise
     // service, awaits the promise to complete. For a machine service, awaits the
     // service to reach its final state and return.
-    promise: Promise<FsmInterpreterCommand<AnyOptions>[]>;
+    // promise: Promise<FsmCommand<AnyOptions>[]>;
   };
 
 export type SpawnedService =
@@ -113,7 +132,7 @@ export type SpawnedService =
   PendingService | ({ status: "settled" } & SpawnedServiceCommon);
 
 // Holds all state for an interpreted machine.
-export type FsmState<Options extends FsmOptions> = {
+type State<Options extends FsmOptions> = {
   id: FsmServiceId;
 
   // Machine's current state.
@@ -125,21 +144,23 @@ export type FsmState<Options extends FsmOptions> = {
   context: Options["Context"];
 
   // Id of parent if a child machine.
-  parent: FsmServiceId | undefined;
+  parent: FsmServiceId | null;
 };
+
+export type FsmState<Options extends FsmOptions> = DeepReadonly<State<Options>>;
 
 export type AnyState = FsmState<AnyOptions>;
 
-export type ApplyTransitionResult<Options extends FsmOptions> = {
-  value: FsmState<Options>["value"];
-  actions: (keyof Options["Actions"])[];
+export type ApplyTransitionResult<Options extends FsmOptions> = DeepReadonly<{
+  value: State<Options>["value"];
+  actions: KeyOf<Options["Actions"]>[];
   services: ServiceInvocation<
     Options["States"],
     Options["Services"],
     Options["Actions"],
     Options["Context"]
   >[];
-};
+}>;
 
 export type FsmRunningMachines = Map<
   FsmServiceId,
@@ -163,3 +184,11 @@ export type FsmInterpreter = {
   get: (id: FsmServiceId) => FsmRunningMachine<AnyOptions> | undefined;
   tick: () => Promise<FsmInterpreterEvent<AnyOptions>[]>;
 };
+
+type SystemData = {
+  instances: FsmRunningMachines;
+  // commands: FsmCommand<AnyOptions>[];
+  effects: FsmEffect[];
+};
+
+export type FsmSystemData = DeepReadonly<SystemData>;

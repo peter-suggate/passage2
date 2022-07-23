@@ -1,11 +1,5 @@
-import { ElkEdge, ElkNode } from "elkjs";
-import { Edge, Node } from "react-flow-renderer";
-import { AnyService } from "../fsm-ts/fsm-service-types";
-import type {
-  FsmOptions,
-  StateDefinitionForOptions,
-} from "../fsm-ts/fsm-types";
-import { buildServiceGraph } from "./buildServiceGraph";
+import { ElkEdge } from "elkjs";
+import type { FsmOptions } from "../fsm-ts/fsm-types";
 import type {
   ElkNodeWithMetadata,
   ElkNodeWithParent,
@@ -17,8 +11,8 @@ import { graphDiff } from "./graphDiff";
 const fontWidth = () => 12;
 
 export const guessStateNodeDimensions = <Options extends FsmOptions>(
-  id: string,
-  value: StateDefinitionForOptions<Options>
+  id: string
+  // value: StateDefinitionForOptions<Options>
 ) => ({
   width: id.length * fontWidth(),
   height: 32,
@@ -36,7 +30,7 @@ export const nodeVerticalSpacing = 16;
 export const nodeIdForTransition = (
   machineId: string,
   transition: { name: string; source: string }
-) => `${machineId}:${transition.source}:${transition.name}`;
+) => `${machineId}:${transition.source}-${transition.name}`;
 
 export const nodeIdForState = (machineId: string, stateId: string) =>
   `${machineId}:${stateId}`;
@@ -52,48 +46,49 @@ export const nodeLabels = (
   nodeType: "machine" | "state" | "transition"
 ) => [{ id: nodeType, text }];
 
-export const mapElkNodeToReact = (
-  node: FsmRendererNode,
-  // service: AnyService,
-  parent?: ElkNode
-): Node[] => {
-  const { id, labels, metadata, changeType, x, y, width, height, children } =
-    node;
+// export const mapElkNodeToReact = (
+//   node: FsmRendererNode,
+//   // service: AnyService,
+//   parent?: ElkNode
+// ): Node[] => {
+//   const { id, labels, metadata, changeType, x, y, width, height, children } =
+//     node;
 
-  const value = labels![0].text;
-  const nodeType = metadata.type;
+//   console.warn(metadata);
+//   const value = `Unknown ${metadata.type} Node`; // labels![0].text;
+//   const nodeType = metadata.type;
 
-  return [
-    {
-      id,
-      type:
-        nodeType === "machine"
-          ? "machineNode"
-          : nodeType === "state"
-          ? "stateNode"
-          : "transitionNode",
-      position: { x: x!, y: y! + (parent ? machineNodeHeaderHeight : 0) },
-      data: {
-        value,
-        ...metadata,
-        changeType,
-        hasChildren: !!children?.length,
-        width,
-        height: height! + (children?.length ? machineNodeHeaderHeight : 0),
-        onClick:
-          nodeType === "transition"
-            ? () => metadata.service.transition(value)
-            : undefined,
-      },
-      parentNode: parent?.id,
-    },
-    ...(children
-      ? children.flatMap((child) =>
-          mapElkNodeToReact(child as FsmRendererNode, node)
-        )
-      : []),
-  ];
-};
+//   return [
+//     {
+//       id,
+//       type:
+//         nodeType === "machine"
+//           ? "machineNode"
+//           : nodeType === "state"
+//           ? "stateNode"
+//           : "transitionNode",
+//       position: { x: x!, y: y! + (parent ? machineNodeHeaderHeight : 0) },
+//       data: {
+//         value,
+//         metadata,
+//         changeType,
+//         hasChildren: !!children?.length,
+//         width,
+//         height: height! + (children?.length ? machineNodeHeaderHeight : 0),
+//         // onClick:
+//         //   nodeType === "transition"
+//         //     ? () => metadata.service.transition(value)
+//         //     : undefined,
+//       },
+//       parentNode: parent?.id,
+//     },
+//     ...(children
+//       ? children.flatMap((child) =>
+//           mapElkNodeToReact(child as FsmRendererNode, node)
+//         )
+//       : []),
+//   ];
+// };
 
 export const flattenElkNode = (
   node: ElkNodeWithMetadata,
@@ -119,6 +114,11 @@ const flattenElkGraph = (root: ElkNodeWithMetadata): ElkNodeWithParent[] =>
     return flattenElkNode(child as ElkNodeWithMetadata, undefined);
   });
 
+type Graph = {
+  nodes: FsmRendererNode[];
+  edges: FsmRendererEdge[];
+};
+
 const mergeGraphWithPrevious = (
   nodes: ElkNodeWithParent[],
   edges: ElkEdge[],
@@ -129,10 +129,7 @@ const mergeGraphWithPrevious = (
   edges: graphDiff(edges, prevEdges),
 });
 
-export const mapToReactFlow = (
-  nodes: FsmRendererNode[],
-  edges: FsmRendererEdge[]
-) => {
+export const toReactFlow = ({ nodes, edges }: Graph) => {
   return {
     nodes: nodes.map((node) => {
       const {
@@ -148,8 +145,11 @@ export const mapToReactFlow = (
         parent,
       } = node;
 
-      const value = labels![0].text;
+      if (metadata.type === "root") throw Error(); // TODO remove me
+      // const value = labels![0].text;
+      const value = `${metadata.label}`; // labels![0].text;
       const nodeType = metadata.type;
+      console.log(metadata);
 
       return {
         id,
@@ -162,15 +162,19 @@ export const mapToReactFlow = (
         position: { x: x!, y: y! + (parent ? machineNodeHeaderHeight : 0) },
         data: {
           value,
-          ...metadata,
+          metadata,
           changeType,
           hasChildren: !!children?.length,
           width,
           height: height! + (children?.length ? machineNodeHeaderHeight : 0),
-          onClick:
-            nodeType === "transition"
-              ? () => metadata.service.transition(value)
-              : undefined,
+          onClick: () => {
+            console.warn("onClick");
+            metadata.type === "transition" && metadata.execute();
+          },
+          // onClick:
+          //   nodeType === "transition"
+          //     ? () => metadata.service.transition(value)
+          //     : undefined,
         },
         parentNode: parent?.id,
       };
@@ -189,18 +193,22 @@ export const mapToReactFlow = (
   };
 };
 
-export const fsmToGraph = async (
-  service: AnyService,
-  prevNodes: FsmRendererNode[],
-  prevEdges: FsmRendererEdge[]
+export const toMergedGraph = (
+  graph: ElkNodeWithMetadata,
+  prevGraph: ReturnType<typeof mergeGraphWithPrevious> | undefined
+  // service: AnyService,
+  // prevNodes: FsmRendererNode[],
+  // prevEdges: FsmRendererEdge[]
 ) => {
-  const graph = await buildServiceGraph(service);
+  // const graph = await buildServiceGraph(service);
 
   const merged = mergeGraphWithPrevious(
     flattenElkGraph(graph),
-    graph.edges || [],
-    prevNodes,
-    prevEdges
+    (graph.edges as ElkEdge[]) || [],
+    prevGraph?.nodes || [],
+    prevGraph?.edges || []
+    // prevNodes,
+    // prevEdges
   );
 
   return merged; //mapToReactFlow(merged.nodes, merged.edges);

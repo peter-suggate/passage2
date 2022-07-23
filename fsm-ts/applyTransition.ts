@@ -1,4 +1,6 @@
-import { ApplyTransitionResult } from "./fsm-service-types";
+import { DeepReadonly, KeyOf } from "./fsm-core-types";
+import { ApplyTransitionResult } from "./fsm-system-types";
+import { machineStateDefinition } from "./fsm-transforms";
 import { stateHasTransitions } from "./fsm-type-guards";
 import {
   FsmMachine,
@@ -8,9 +10,9 @@ import {
 } from "./fsm-types";
 
 const lookupTransition = <Options extends FsmOptions>(
-  state: StateDefinitionForOptions<Options>,
+  state: DeepReadonly<StateDefinitionForOptions<Options>>,
   transitionName: string
-): TransitionDefinitionForOptions<Options> => {
+): DeepReadonly<TransitionDefinitionForOptions<Options>> => {
   if (!stateHasTransitions(state)) throw new Error("TODO handle me");
 
   if (transitionName === "onDone" && state.invoke?.onDone) {
@@ -29,12 +31,12 @@ const lookupTransition = <Options extends FsmOptions>(
 export const applyTransition =
   <Options extends FsmOptions>(machine: FsmMachine<Options>) =>
   (
-    state?: keyof Options["States"],
+    state?: DeepReadonly<KeyOf<Options["States"]>>,
     transitionName?: string | null
   ): ApplyTransitionResult<Options> => {
     if (!state || !transitionName) {
       // Uninitialized state.
-      const stateDefinition = machine.states[machine.initial];
+      const stateDefinition = machineStateDefinition(machine, machine.initial);
 
       return {
         value: machine.initial,
@@ -43,19 +45,19 @@ export const applyTransition =
       };
     }
 
-    const currentState = machine.states[
-      state
-    ] as StateDefinitionForOptions<Options>;
+    const currentState = machineStateDefinition(machine, state);
     if (!stateHasTransitions<Options>(currentState))
       throw new Error("TODO handle me: " + JSON.stringify(currentState));
 
     const transition = lookupTransition<Options>(currentState, transitionName);
     const { target, actions: transitionActions } = transition;
 
-    const newState = machine.states[target];
+    const newState = machine.states[target] as DeepReadonly<
+      StateDefinitionForOptions<Options>
+    >;
 
     // Build a list of fire-and-forget actions that are executed during the transition.
-    const actions: (keyof Options["Actions"])[] = [];
+    const actions: DeepReadonly<KeyOf<Options["Actions"]>>[] = [];
 
     currentState.exit && actions.push(currentState.exit);
     transitionActions && actions.push(...transitionActions);

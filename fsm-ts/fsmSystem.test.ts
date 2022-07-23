@@ -1,21 +1,17 @@
 import { createMachine } from "./createMachine";
-import {
-  emptySystem,
-  instantiateMachine,
-  processCommands,
-  send,
-} from "./createSystem";
-import { sleep } from "./fsm-core-util";
+import { emptySystem, exhaust, command, commands } from "./fsmSystem";
 import { FsmEvent } from "./fsm-types";
 import { pipe } from "fp-ts/function";
+import { FsmRep } from "./fsm-system-types";
 
 it("an empty system has no running instances", () => {
   const system = emptySystem();
 
   expect(system.instances.size).toBe(0);
-  expect(system.commands).toHaveLength(0);
   expect(system.effects).toHaveLength(0);
 });
+
+const empty: FsmRep = [emptySystem(), []];
 
 it("supports starting a running machine and processing events to get it into its initial state", async () => {
   // Terminology:
@@ -28,34 +24,21 @@ it("supports starting a running machine and processing events to get it into its
   //
   // An effect terminates with an optional event sent back to the interpreter.
 
-  // pipe(
-  //   createSystem(), // [instances = 0, commands = 0, effects = 0]
-  //   instantiate(),  // [instances = 0, commands = 1, effects = 0]
-  //   tick(),         // [instances = 1, commands = 0, effects = 0]
-  //   pipe(
-  //     latestInstance(),
-  //     start()
-  //   ), // [instances = 0, events = 0]
-  // )
   const result = pipe(
-    emptySystem(),
-    instantiateMachine(
-      createMachine({ id: "machine", initial: "state", states: { state: {} } })
-    ),
-    // (data) => {
-    //   expect(data.commands).toHaveLength(1);
-    //   return data;
-    // },
-    processCommands
+    empty,
+    command({
+      type: "instantiate",
+      machine: createMachine({
+        id: "machine",
+        initial: "state",
+        states: { state: {} },
+      }),
+    }),
+    exhaust()
   );
 
-  expect(result).toMatchObject({
-    // instances: new Map(),
-    commands: [],
-    effects: [],
-  });
-
-  expect(result.instances.get("running-machine")?.state.value).toBe("state");
+  expect(result[0].instances.get("running-machine")?.state.value).toBe("state");
+  expect(result[1]).toMatchObject([]);
 });
 
 it("updates current state upon transition", async () => {
@@ -75,13 +58,15 @@ it("updates current state upon transition", async () => {
   });
 
   const result = pipe(
-    emptySystem(),
-    instantiateMachine(machine),
-    send({ type: "transition", id: "running-machine", name: "transition" }),
-    processCommands
+    empty,
+    command({ type: "instantiate", machine }),
+    command({ type: "transition", id: "running-machine", name: "transition" }),
+    exhaust()
   );
 
-  expect(result.instances.get("running-machine")!.state.value).toBe("state2");
+  expect(result[0].instances.get("running-machine")!.state.value).toBe(
+    "state2"
+  );
 });
 
 it("invokes actions upon state entry and exit", async () => {
@@ -113,9 +98,9 @@ it("invokes actions upon state entry and exit", async () => {
   });
 
   let result = pipe(
-    emptySystem(),
-    instantiateMachine(machine),
-    processCommands
+    empty,
+    command({ type: "instantiate", machine }),
+    exhaust()
   );
 
   expect(state1Entry).toBeCalledWith(
@@ -127,13 +112,13 @@ it("invokes actions upon state entry and exit", async () => {
 
   result = pipe(
     result,
-    send({
+    command({
       type: "transition",
       id: "running-machine",
       name: "transition",
       value,
     }),
-    processCommands
+    exhaust()
   );
 
   expect(state1Exit).toBeCalledWith(
@@ -146,7 +131,9 @@ it("invokes actions upon state entry and exit", async () => {
     { type: "transition", id: "running-machine", name: "transition", value }
   );
 
-  expect(result.instances.get("running-machine")!.state.value).toBe("state2");
+  expect(result[0].instances.get("running-machine")!.state.value).toBe(
+    "state2"
+  );
 });
 
 // const promiseObject = new Promise((res) => res(undefined));
@@ -188,21 +175,22 @@ it("supports invoking a promise upon entering a state", async () => {
   });
 
   let result = pipe(
-    emptySystem(),
-    instantiateMachine(machine),
-    processCommands
+    empty,
+    command({ type: "instantiate", machine }),
+    exhaust()
   );
 
-  const child = Array.from(
-    result.instances.get("running-machine")!.state.children.values()
-  )[0];
+  const childCommandsOnDone = await result[0].effects[0].execute();
+  // const child = Array.from(
+  //   result.instances.get("running-machine")!.state.children.values()
+  // )[0];
 
-  const childCommandsOnDone =
-    child.status === "pending" ? await child.promise : [];
+  // const childCommandsOnDone =
+  //   child.status === "pending" ? await child.promise : [];
 
-  result = pipe(result, send(childCommandsOnDone), processCommands);
+  result = pipe(result, commands(childCommandsOnDone), exhaust());
 
-  expect(result.instances.get("running-machine")!.state).toMatchObject({
+  expect(result[0].instances.get("running-machine")!.state).toMatchObject({
     context: { value: "promise result" },
     value: "final",
   });
@@ -276,18 +264,18 @@ it("supports invoking a (child) machine", async () => {
   const TODOS = ["fetched todo", "another fetched todo"];
 
   let result = pipe(
-    emptySystem(),
-    instantiateMachine(parentMachine),
-    send({
+    empty,
+    command({ type: "instantiate", machine: parentMachine }),
+    command({
       type: "transition",
       id: "running-child",
       name: "retrieved",
       value: TODOS,
     }),
-    processCommands
+    exhaust()
   );
 
-  expect(result.instances.get("running-parent")?.state).toMatchObject({
+  expect(result[0].instances.get("running-parent")?.state).toMatchObject({
     context: {
       todos: TODOS,
     },

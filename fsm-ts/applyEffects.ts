@@ -1,4 +1,4 @@
-import { FsmRunningMachine } from "./fsm-service-types";
+import { FsmRunningMachine } from "./fsm-system-types";
 import { AnyOptions, FinalStateDefinition, FsmOptions } from "./fsm-types";
 
 export const getAnyFinalStateDataValue = <Options extends FsmOptions>(

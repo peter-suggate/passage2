@@ -1,14 +1,18 @@
-import { AnyState } from "./fsm-service-types";
+import { DeepReadonly } from "./fsm-core-types";
+import { AnyState } from "./fsm-system-types";
 import { isMachineService, stateHasTransitions } from "./fsm-type-guards";
 import {
   AnyMachine,
   AnyTransitionStateDefinition,
+  FsmMachine,
+  FsmOptions,
   MachineServiceDefinition,
+  StateDefinitionForOptions,
 } from "./fsm-types";
 
 export const stateTransitions = (
   id: AnyState["value"],
-  state: AnyTransitionStateDefinition,
+  state: DeepReadonly<AnyTransitionStateDefinition>,
   invokeOnly?: boolean
 ) => {
   const transitionState = state as AnyTransitionStateDefinition;
@@ -74,3 +78,8 @@ export const invokableChildMachines = (
     .map((state) => invokableMachineForState(machine, state))
     .filter((maybe) => !!maybe) as MachineServiceDefinition[];
 };
+
+export const machineStateDefinition = <Options extends FsmOptions>(
+  machine: FsmMachine<Options>,
+  state: typeof machine["initial"]
+) => machine.states[state] as DeepReadonly<StateDefinitionForOptions<Options>>;

@@ -7,7 +7,8 @@ import styles from "./Nodes.module.css";
 type Props = {
   data: {
     value: string;
-    definition: AnyStateDefinition;
+    // definition: AnyStateDefinition;
+    metadata: { type: "state"; definition?: AnyStateDefinition };
     isActive: boolean;
     width: number;
     height: number;
@@ -21,7 +22,8 @@ type Props = {
 
 export const StateNode = ({ data }: Props) => {
   //   const [vm, setVM] = React.useState(toViewModel(data));
-  const { width, height, definition } = data;
+  const { width, height, metadata } = data;
+  const { definition } = metadata;
   // console.log(data.changeType);
   return (
     <div
@@ -31,7 +33,7 @@ export const StateNode = ({ data }: Props) => {
       style={{ width, height: height }}
     >
       <div className={styles.title}>{data.value}</div>
-      {definition.type === "final" ? (
+      {definition!.type === "final" ? (
         <span className={styles.finalLabel}>Final</span>
       ) : null}
       {/* <Handle type="target" position={Position.Left} id="child" />
