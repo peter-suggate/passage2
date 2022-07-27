@@ -12,7 +12,7 @@ export const runMachine = <Options extends FsmOptions>(
       // value: null,
       value: null as any,
       context: machine.context,
-      id: `running-${machine.id}`,
+      id: `${machine.id}`,
       children: new Map(),
       parent: parent || null,
     },

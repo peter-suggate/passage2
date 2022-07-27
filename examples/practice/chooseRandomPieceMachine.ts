@@ -15,7 +15,7 @@ const PIECES = [
 ];
 
 export const chooseRandomPieceMachine = createMachine<Context>({
-  id: "choose random piece",
+  id: "Random Chooser",
   initial: "fetching list",
   context: { piece: undefined, list: [] },
   states: {
@@ -23,12 +23,15 @@ export const chooseRandomPieceMachine = createMachine<Context>({
       invoke: {
         src: "fetchList",
         onDone: {
-          target: "choosing at random",
+          target: "choosing random",
           actions: ["store list"],
+        },
+        onError: {
+          target: "returning piece",
         },
       },
     },
-    "choosing at random": {
+    "choosing random": {
       invoke: {
         src: "generate",
         onDone: {
@@ -39,22 +42,22 @@ export const chooseRandomPieceMachine = createMachine<Context>({
     },
     "found one": {
       on: {
-        accept: { target: "returning chosen piece" },
-        "choose another": { target: "choosing at random" },
+        accept: { target: "returning piece" },
+        "choose another": { target: "choosing random" },
       },
     },
-    "returning chosen piece": {
+    "returning piece": {
       type: "final",
-      data: "return chosen piece",
+      data: "return piece",
     },
   },
   services: {
     fetchList: async () => {
-      await sleep(2000);
+      await sleep(200);
       return PIECES;
     },
     generate: async (context: Context) => {
-      await sleep(2000);
+      await sleep(200);
       return context.list[Math.floor(Math.random() * context.list.length)];
     },
   },
@@ -65,7 +68,7 @@ export const chooseRandomPieceMachine = createMachine<Context>({
         list: event.value,
       };
     },
-    "return chosen piece": (context: Context, event: FsmEvent) => {
+    "return piece": (context: Context, event: FsmEvent) => {
       return context.piece;
     },
     "store piece": (context: Context, event: FsmEvent) => {

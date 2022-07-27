@@ -12,18 +12,45 @@ export type StepperFunc<Options extends FsmOptions> = (
   event: FsmInterpreterEvent<Options>
 ) => Promise<void>;
 
-export type FsmEffect = {
-  parent: FsmServiceId;
-  id: FsmServiceId;
-  name: string;
+export type UnstartedEffect = {
+  status: "not started";
   execute: () => Promise<FsmCommand<AnyOptions>[]>;
 };
+
+export type PendingEffect = {
+  status: "pending";
+  promise: Promise<FsmCommand<AnyOptions>[]>;
+};
+
+export type SettledEffect = {
+  status: "settled";
+  result: "success" | "error";
+  commands: FsmCommand<AnyOptions>[];
+};
+
+export type FsmEffect = DeepReadonly<
+  {
+    parent: FsmServiceId;
+    id: FsmServiceId;
+    name: string;
+  } & (UnstartedEffect | PendingEffect | SettledEffect)
+>;
 
 type InterpreterCommand<Options extends FsmOptions> =
   | {
       type: "instantiate";
       machine: MachineDefinition<Options>;
       parent?: FsmServiceId | null;
+    }
+  | {
+      type: "settle effect";
+      commands: InterpreterCommand<Options>[];
+      result: "success" | "error";
+      effectId: string;
+    }
+  | {
+      type: "remove effect";
+      effectId: string;
     }
   | ({
       id: FsmServiceId;
@@ -34,7 +61,7 @@ type InterpreterCommand<Options extends FsmOptions> =
           value?: any;
         }
       | {
-          type: "invoke service";
+          type: "invoke";
           invocation: ServiceInvocation<
             Options["States"],
             Options["Services"],
@@ -48,7 +75,7 @@ type InterpreterCommand<Options extends FsmOptions> =
           event: FsmEvent;
         }
       | {
-          type: "enter state";
+          type: "enter";
           value: KeyOf<Options["States"]>;
         }
       | {
@@ -56,7 +83,7 @@ type InterpreterCommand<Options extends FsmOptions> =
           value: KeyOf<Options["States"]>;
         }
       | {
-          type: "exit child service";
+          type: "exit child";
           child: FsmServiceId;
           // result: unknown;
         }

@@ -1,55 +1,80 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
-import { GraphChangeDescription } from "./fsm-render-types";
+import {
+  ElkNodeTransitionMetadata,
+  GraphChangeDescription,
+} from "./fsm-render-types";
 import styles from "./Nodes.module.css";
+import { IconButton } from "@mui/material";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import ArrowRightAltIcon from "@mui/icons-material/ArrowRightAlt";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 type Props = {
   data: {
     value: string;
-    onClick: () => void;
+    metadata: ElkNodeTransitionMetadata;
+    onClick?: () => void;
     inStateId: string;
     outStateId: string;
-    removing: boolean;
     changeType: GraphChangeDescription["changeType"];
+    width: number;
+    height: number;
   };
 };
 
-// const toViewModel = (model: Props["data"]) => {
-//   return { ...model };
-// };
-
 export const TransitionNode = ({ data }: Props) => {
-  //   const [vm, setVM] = React.useState(toViewModel(data));
-  // const [show, setShow] = React.useState(true);
+  const { width, height, metadata } = data;
 
-  // const onClick = React.useCallback(() => {
-  //   window.setTimeout(() => {
-  //     data.onClick();
-  //   }, 300);
-
-  //   setShow(false);
-  // }, [data]);
-  // console.log("removing", data.removing);
+  const isAutomatic = data.value === "onDone" || data.value === "onError";
 
   return (
-    <div
-    // className={}
-    // in={!data.removing}
-    // timeout={500}
-    // classNames={"list-transition"}
-    // appear
-    // unmountOnExit
-    >
-      <div
-        className={`${styles.transitionNode} ${styles[data.changeType]}`}
-        onClick={data.onClick}
-      >
-        <div className={styles.title}>{data.value}</div>
-        {/* <Handle type="source" position={Position.Right} id={data.inStateId} />
-      <Handle type="target" position={Position.Left} id={data.outStateId} /> */}
-        <Handle type="source" position={Position.Bottom} id={data.inStateId} />
-        <Handle type="target" position={Position.Top} id={data.outStateId} />
-      </div>
+    <div style={{ width, height }}>
+      {isAutomatic ? (
+        <div
+          className={`${styles.transitionNode} ${styles.invoke} ${
+            styles[data.changeType]
+          } flex flex-row align-center`}
+        >
+          <div className="flex-grow" />
+          <>
+            {data.value === "onDone" ? (
+              <CheckCircleOutlineIcon htmlColor="#080" fontSize="small" />
+            ) : (
+              <ErrorOutlineIcon htmlColor="#a00" fontSize="small" />
+            )}
+            <ArrowRightAltIcon />
+            <span className={styles.target}>{metadata.target}</span>
+          </>
+          <Handle
+            type="target"
+            position={Position.Right}
+            id={data.outStateId}
+          />
+        </div>
+      ) : (
+        <div
+          className={`${styles.transitionNode} ${
+            styles[data.changeType]
+          } flex flex-row align-center`}
+        >
+          <div className={"flex-grow"} />
+          <div className={`flex flex-col items-end ${styles.text}`}>
+            {/* <div className={styles.label}>Transition</div> */}
+            {/* {isAutomatic ? null : (
+            <div className={styles.title}>{data.value}</div>
+          )} */}
+            <div className={styles.title}>{data.value}</div>
+          </div>
+          <div className={"flex-grow"} />
+          {data.onClick ? (
+            <IconButton onClick={data.onClick}>
+              <NavigateNextIcon />
+            </IconButton>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

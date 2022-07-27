@@ -1,5 +1,17 @@
 import { ElkEdge } from "elkjs";
-import type { FsmOptions } from "../fsm-ts/fsm-types";
+import { MarkerType } from "react-flow-renderer";
+import { DeepReadonly } from "../fsm-ts/fsm-core-types";
+import { FsmRunningMachine } from "../fsm-ts/fsm-system-types";
+import {
+  machineStateDefinition,
+  stateTransitionDefinitions,
+  stateTransitions,
+} from "../fsm-ts/fsm-transforms";
+import type {
+  AnyStateDefinition,
+  FsmOptions,
+  StateDefinitionForOptions,
+} from "../fsm-ts/fsm-types";
 import type {
   ElkNodeWithMetadata,
   ElkNodeWithParent,
@@ -10,18 +22,125 @@ import { graphDiff } from "./graphDiff";
 
 const fontWidth = () => 12;
 
-export const guessStateNodeDimensions = <Options extends FsmOptions>(
-  id: string
-  // value: StateDefinitionForOptions<Options>
-) => ({
-  width: id.length * fontWidth(),
-  height: 32,
-});
+type NodeDisplayMetrics = {
+  padding: {
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+  };
+  desiredMinSize: {
+    width: number;
+    height: number;
+  };
+};
 
-export const guessTransitionNodeDimensions = (id: string) => ({
-  width: id.length * fontWidth(),
-  height: 32,
-});
+export const guessMachineNodeDimensions = <Options extends FsmOptions>(
+  instance: FsmRunningMachine<Options>
+): NodeDisplayMetrics => {
+  const { machine, state } = instance;
+
+  const PAD = 32;
+
+  const MACHINE_MIN_WIDTH = 240;
+  const TITLE_HEIGHT_AND_PAD = 24 * 2 + 20;
+  const CONTEXT_HEIGHT_AND_PAD = 120;
+  // const TRANSITION_HEIGHT = 64;
+  const TRANSITION_PAD = 16;
+
+  // const transitions = machineTransitions(machine, { state: state.value });
+
+  return {
+    padding: {
+      bottom: PAD,
+      left: PAD,
+      right: PAD,
+      top: /*PAD + CONTEXT_HEIGHT_AND_PAD*/ +TITLE_HEIGHT_AND_PAD,
+    },
+    desiredMinSize: {
+      width: Math.max(
+        MACHINE_MIN_WIDTH,
+        PAD * 2 + machine.id.length * fontWidth()
+      ),
+      height:
+        PAD * 2 +
+        CONTEXT_HEIGHT_AND_PAD +
+        TITLE_HEIGHT_AND_PAD +
+        guessStateNodeDimensions(
+          instance.state.id,
+          machineStateDefinition(machine, state.value || machine.initial)
+        ).height +
+        // Object.keys(machine.states).length * 32 +
+        // transitions.length * TRANSITION_HEIGHT +
+        TRANSITION_PAD * 2,
+    },
+  };
+};
+
+type GuessSizeFunc = (label: string) => { width: number; height: number };
+
+const accumulateSizes = (labels: string[], guessSize: GuessSizeFunc) =>
+  labels.map(guessSize).reduce(
+    (acc, cur) => ({
+      width: Math.max(acc.width, cur.width),
+      height: acc.height + cur.height,
+    }),
+    {
+      width: 0,
+      height: 0,
+    }
+  );
+
+export const guessStateNodeDimensions = <Options extends FsmOptions>(
+  id: string,
+  definition: DeepReadonly<StateDefinitionForOptions<Options>>
+): { width: number; height: number } => {
+  const sizeForTransitions = accumulateSizes(
+    stateTransitionDefinitions(definition, { includeOnTransitions: true }),
+    guessTransitionNodeDimensions(false)
+  );
+
+  const sizeForInvoke = guessInvokeNodeDimensions(definition, true);
+
+  const heightForFinal =
+    definition.type === "final" ? 40 + (definition.data ? 32 : 0) : 0;
+
+  return {
+    width: Math.max(
+      220,
+      sizeForTransitions.width,
+      sizeForInvoke.width,
+      id.length * fontWidth()
+    ),
+    height:
+      64 + sizeForTransitions.height + sizeForInvoke.height + heightForFinal,
+  };
+};
+
+export const guessTransitionNodeDimensions =
+  (forInvoke?: boolean) => (label: string) => ({
+    width: Math.max(200, label.length * fontWidth()),
+    height: forInvoke ? 20 : 46,
+  });
+
+export const guessInvokeNodeDimensions = (
+  stateDefinition: DeepReadonly<AnyStateDefinition>,
+  includePad?: boolean
+) => {
+  const sizeForTransitions = accumulateSizes(
+    stateTransitionDefinitions(stateDefinition, {
+      includeInvokeTransitions: true,
+    }),
+    guessTransitionNodeDimensions(true)
+  );
+
+  return sizeForTransitions.height
+    ? {
+        width: sizeForTransitions.width,
+        height: sizeForTransitions.height + 44 + (includePad ? 50 : 0),
+      }
+    : { width: 0, height: 0 };
+};
 
 export const machineNodeHeaderHeight = 32;
 
@@ -31,6 +150,9 @@ export const nodeIdForTransition = (
   machineId: string,
   transition: { name: string; source: string }
 ) => `${machineId}:${transition.source}-${transition.name}`;
+
+export const nodeIdForInvoke = (machineId: string, src: string) =>
+  `${machineId}:invoke-${src}`;
 
 export const nodeIdForState = (machineId: string, stateId: string) =>
   `${machineId}:${stateId}`;
@@ -45,50 +167,6 @@ export const nodeLabels = (
   text: string,
   nodeType: "machine" | "state" | "transition"
 ) => [{ id: nodeType, text }];
-
-// export const mapElkNodeToReact = (
-//   node: FsmRendererNode,
-//   // service: AnyService,
-//   parent?: ElkNode
-// ): Node[] => {
-//   const { id, labels, metadata, changeType, x, y, width, height, children } =
-//     node;
-
-//   console.warn(metadata);
-//   const value = `Unknown ${metadata.type} Node`; // labels![0].text;
-//   const nodeType = metadata.type;
-
-//   return [
-//     {
-//       id,
-//       type:
-//         nodeType === "machine"
-//           ? "machineNode"
-//           : nodeType === "state"
-//           ? "stateNode"
-//           : "transitionNode",
-//       position: { x: x!, y: y! + (parent ? machineNodeHeaderHeight : 0) },
-//       data: {
-//         value,
-//         metadata,
-//         changeType,
-//         hasChildren: !!children?.length,
-//         width,
-//         height: height! + (children?.length ? machineNodeHeaderHeight : 0),
-//         // onClick:
-//         //   nodeType === "transition"
-//         //     ? () => metadata.service.transition(value)
-//         //     : undefined,
-//       },
-//       parentNode: parent?.id,
-//     },
-//     ...(children
-//       ? children.flatMap((child) =>
-//           mapElkNodeToReact(child as FsmRendererNode, node)
-//         )
-//       : []),
-//   ];
-// };
 
 export const flattenElkNode = (
   node: ElkNodeWithMetadata,
@@ -149,7 +227,6 @@ export const toReactFlow = ({ nodes, edges }: Graph) => {
       // const value = labels![0].text;
       const value = `${metadata.label}`; // labels![0].text;
       const nodeType = metadata.type;
-      console.log(metadata);
 
       return {
         id,
@@ -158,6 +235,10 @@ export const toReactFlow = ({ nodes, edges }: Graph) => {
             ? "machineNode"
             : nodeType === "state"
             ? "stateNode"
+            : nodeType === "promise"
+            ? "promiseNode"
+            : nodeType === "invoke"
+            ? "invokeNode"
             : "transitionNode",
         position: { x: x!, y: y! + (parent ? machineNodeHeaderHeight : 0) },
         data: {
@@ -167,10 +248,12 @@ export const toReactFlow = ({ nodes, edges }: Graph) => {
           hasChildren: !!children?.length,
           width,
           height: height! + (children?.length ? machineNodeHeaderHeight : 0),
-          onClick: () => {
-            console.warn("onClick");
-            metadata.type === "transition" && metadata.execute();
-          },
+          onClick:
+            metadata.type === "transition" && metadata.execute
+              ? () => {
+                  metadata.type === "transition" && metadata.execute!();
+                }
+              : undefined,
           // onClick:
           //   nodeType === "transition"
           //     ? () => metadata.service.transition(value)
@@ -188,6 +271,18 @@ export const toReactFlow = ({ nodes, edges }: Graph) => {
         target: targets[0],
         targetHandle: "target",
         sourceHandle: "source",
+        // type: "smoothstep",
+        // markerStart: "arrowclosed",
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#555",
+        },
+        zIndex: 1,
+        style: {
+          stroke: "#555",
+          strokeWidth: 2,
+        },
+        // label: "bla",
       };
     }),
   };

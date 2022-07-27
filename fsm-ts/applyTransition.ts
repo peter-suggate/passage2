@@ -1,7 +1,6 @@
 import { DeepReadonly, KeyOf } from "./fsm-core-types";
 import { ApplyTransitionResult } from "./fsm-system-types";
-import { machineStateDefinition } from "./fsm-transforms";
-import { stateHasTransitions } from "./fsm-type-guards";
+import { machineStateDefinition, stateHasTransitions } from "./fsm-transforms";
 import {
   FsmMachine,
   FsmOptions,
@@ -13,13 +12,23 @@ const lookupTransition = <Options extends FsmOptions>(
   state: DeepReadonly<StateDefinitionForOptions<Options>>,
   transitionName: string
 ): DeepReadonly<TransitionDefinitionForOptions<Options>> => {
-  if (!stateHasTransitions(state)) throw new Error("TODO handle me");
+  if (
+    !stateHasTransitions(state, {
+      includeInvokeTransitions: true,
+      includeOnTransitions: true,
+    })
+  )
+    throw new Error("TODO handle me");
 
   if (transitionName === "onDone" && state.invoke?.onDone) {
     return state.invoke.onDone;
   } else if (transitionName === "onError" && state.invoke?.onError) {
     return state.invoke.onError;
-  } else if (state.on && Object.keys(state.on).includes(transitionName)) {
+  } else if (
+    state.type !== "final" &&
+    state.on &&
+    Object.keys(state.on).includes(transitionName)
+  ) {
     return state.on[transitionName];
   }
 
@@ -46,7 +55,12 @@ export const applyTransition =
     }
 
     const currentState = machineStateDefinition(machine, state);
-    if (!stateHasTransitions<Options>(currentState))
+    if (
+      !stateHasTransitions(currentState, {
+        includeOnTransitions: true,
+        includeInvokeTransitions: true,
+      })
+    )
       throw new Error("TODO handle me: " + JSON.stringify(currentState));
 
     const transition = lookupTransition<Options>(currentState, transitionName);

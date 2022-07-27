@@ -1,3 +1,5 @@
+import styles from "./Nodes.module.css";
+
 type Props<Context> = {
   context: Context;
 };
@@ -47,7 +49,7 @@ export const MachineContext = <Context extends {}>({
   context,
 }: Props<Context>) => {
   return (
-    <div>
+    <div className={styles.context}>
       {Object.entries(context).map((entry) => {
         const key = entry[0];
         const value = entry[1];

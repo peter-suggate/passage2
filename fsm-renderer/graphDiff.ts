@@ -11,7 +11,7 @@ export const graphDiff = <T extends { id: string }>(
     );
 
   return [
-    ...removed,
+    // ...removed,
     ...current.map((c) => {
       const inPrevious = previous.some((p) => p.id === c.id);
 

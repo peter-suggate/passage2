@@ -1,8 +1,15 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
+import {
+  machineStateDefinition,
+  machineTransitions,
+} from "../fsm-ts/fsm-transforms";
 import { ElkNodeMetadata } from "./fsm-render-types";
 import { MachineContext } from "./MachineContext";
+import { commands } from "./model";
 import styles from "./Nodes.module.css";
+import { StateNode } from "./StateNode";
+import { TransitionNode } from "./TransitionNode";
 
 type Props = {
   data: {
@@ -15,38 +22,63 @@ type Props = {
   };
 };
 
-// const toViewModel = (model: Props["data"]) => {
-//   return { ...model };
-// };
-
 export const MachineNode = ({ data }: Props) => {
-  // const [vm, setVM] = React.useState(toViewModel(data));
-
   const { width, height, metadata } = data;
 
-  console.warn("metadata", metadata);
-  // React.useEffect(() => {
-  //   const disposer = service.subscribe(() => {
-  //     setVM(toViewModel(data));
-  //   });
+  if (metadata.type !== "machine") throw Error();
 
-  //   disposer();
-  // }, [data, data.value, service]);
-
-  // console.log(service.currentState.context);
+  // const { machine, state } = metadata.instance;
 
   return (
     <div
       className={`${styles.machineNode} ${
         data.isActive ? styles.isActive : ""
-      } ${data.hasChildren ? styles.hasChildren : ""}`}
+      } ${
+        data.hasChildren ? styles.hasChildren : ""
+      } animate emerge flex flex-col`}
       style={{ width, height: height }}
     >
-      <div className={styles.title}>{data.value}</div>
-      {/* <Handle type="target" position={Position.Left} id="child" />
-      <Handle type="source" position={Position.Right} id="parent" /> */}
-      <Handle type="source" position={Position.Bottom} id="source" />
-      <Handle type="target" position={Position.Top} id="target" />
+      <div className={`text-3xl font-bold ${styles.title}`}>{data.value}</div>
+      {/* <StateNode
+        data={{
+          width: 220,
+          height: 65,
+          changeType: "no-change",
+          metadata: {
+            type: "state",
+            value: state.value,
+            label: state.value,
+            definition: machineStateDefinition(machine, state.value),
+          },
+        }}
+      />
+      {machineTransitions(machine, { state: state.value }).map((transition) => (
+        <TransitionNode
+          key={transition.name}
+          data={{
+            changeType: "no-change",
+            inStateId: transition.source,
+            outStateId: transition.target,
+            value: transition.name,
+            onClick: () =>
+              commands.send({
+                type: "transition",
+                id: state.id,
+                name: transition.name,
+              }),
+          }}
+        />
+      ))} */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="child"
+        style={{ top: 32 + 6 }}
+      />
+      {/* <Handle type="source" position={Position.Right} id="parent" /> */}
+      {/* <Handle type="source" position={Position.Bottom} id="source" />
+      <Handle type="target" position={Position.Top} id="target" /> */}
+      <div className="flex-grow" />
       <MachineContext
         context={metadata.type === "machine" && metadata.instance.state.context}
       />

@@ -10,12 +10,34 @@ export type GraphChangeDescription =
   | { changeType: "removed" }
   | { changeType: "no-change" };
 
+export type ElkNodePromiseMetadata = {
+  type: "promise";
+  promise: FsmEffect;
+  label: string;
+};
+
+export type ElkNodeStateMetadata = {
+  type: "state";
+  definition: DeepReadonly<AnyStateDefinition> | undefined;
+  hidden?: boolean;
+  label: string;
+  value: string;
+};
+
+export type ElkNodeTransitionMetadata = {
+  type: "transition";
+  execute?: () => void;
+  label: string;
+  target: string;
+};
+
 export type ElkNodeMetadata =
   | { type: "root" }
-  | { type: "state"; definition?: AnyStateDefinition; label: string }
-  | { type: "transition"; execute: () => void; label: string }
+  | ElkNodeStateMetadata
+  | ElkNodeTransitionMetadata
   | { type: "machine"; instance: AnyRunningMachine; label: string }
-  | { type: "promise"; promise: FsmEffect; label: string };
+  | { type: "invoke"; label: string }
+  | ElkNodePromiseMetadata;
 
 export type ElkNodeWithMetadata = DeepReadonly<
   ElkNode & { metadata: ElkNodeMetadata }

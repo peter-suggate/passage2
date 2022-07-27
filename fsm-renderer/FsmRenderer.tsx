@@ -3,25 +3,12 @@ import ReactFlow, { useEdgesState, useNodesState } from "react-flow-renderer";
 import styles from "./FsmRenderer.module.css";
 import { MachineNode } from "./MachineNode";
 import { PromiseNode } from "./PromiseNode";
-import { menuMachine } from "../examples/practice/menuMachine";
 import { StateNode } from "./StateNode";
 import { TransitionNode } from "./TransitionNode";
-import { commandStore, fsmStore } from "../fsm-ts/fsmStore";
-import { graphStore } from "./graphStore";
-import { emptySystem } from "../fsm-ts/fsmSystem";
+import { CommandQueue } from "./CommandQueue";
+import { graph } from "./model";
+import { InvokeNode } from "./InvokeNode";
 
-// const stepper = async (e: FsmEvent) => sleep(0);
-// const service = createService(menuMachine, { stepper });
-// service.start();
-const commands = commandStore();
-
-const fsm = fsmStore(commands)(
-  emptySystem()
-  // pipe(emptySystem(), instantiateMachine(menuMachine), processCommands())
-);
-commands.send({ type: "instantiate", machine: menuMachine, parent: undefined });
-// commands.exhaust();
-const graph = graphStore(commands, fsm);
 // fsm.send({ type: "instantiate", machine: menuMachine, parent: undefined });
 
 // we define the nodeTypes outside of the component to prevent re-renderings
@@ -29,6 +16,7 @@ const graph = graphStore(commands, fsm);
 const nodeTypes = {
   machineNode: MachineNode,
   promiseNode: PromiseNode,
+  invokeNode: InvokeNode,
   stateNode: StateNode,
   transitionNode: TransitionNode,
 };
@@ -46,11 +34,6 @@ export const FsmRenderer = () => {
     graph.getSnapshot
   );
 
-  const allCommands = React.useSyncExternalStore(
-    commands.subscribe,
-    commands.data,
-    commands.data
-  );
   // const {
   //   nodes: initialNodes,
   //   edges: initialEdges,
@@ -128,21 +111,28 @@ export const FsmRenderer = () => {
 
   //   return disposer;
   // }, [setEdges, setNodes]);
+  // const ref = React.createRef<HTMLDivElement>()
+
+  // autoAnimate(
+  //   document?.getElementsByClassName(
+  //     "react-flow__nodes react-flow__container"
+  //   )[0] as HTMLElement
+  // );
 
   return (
-    <>
-      <ReactFlow
-        className={styles.fsmRenderer}
-        style={{ position: "absolute" }}
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        // fitView
-      />
-      {allCommands.map((c, i) => (
-        <div key={i}>{c.type}</div>
-      ))}
-    </>
+    <div className={styles.container}>
+      <div className={styles.fsm}>
+        <ReactFlow
+          className={styles.fsmRenderer}
+          style={{ position: "absolute", height: `calc(100% - 120px)` }}
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          // fitView
+        />
+      </div>
+      <CommandQueue />
+    </div>
   );
 };
 

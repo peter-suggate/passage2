@@ -1,0 +1,46 @@
+.commandQueue {
+  flex-basis: 120px;
+  background-color: #d6e6d8;
+  padding: 0 30px;
+  position: relative;
+}
+
+.commandQueue .item {
+  flex-basis: 150px;
+  align-self: center;
+  margin: 0 10px;
+  min-width: 100px;
+  text-align: center;
+  color: #555;
+  font-weight: 700;
+  font-size: smaller;
+  text-transform: uppercase;
+  padding: 5px 15px;
+  border-right: 1px solid #ccc;
+}
+
+.commandQueue .next {
+  position: absolute;
+  /* height: 32px; */
+  padding: 12px;
+  top: -16px;
+  left: 20px;
+  font-size: large;
+  border-radius: 40px;
+  background-color: blue;
+  color: white;
+  text-transform: uppercase;
+  /* background: linear-gradient(145deg, #e5f6e7, #c1cfc2);
+  box-shadow: 5px 5px 9px #abb8ad, -5px -5px 9px #ffffff; */
+  cursor: pointer;
+  border: none;
+}
+
+.commandQueue .item .description {
+  font-size: x-small;
+  color: #777;
+}
+
+.nextWrapper {
+  margin: 12px;
+}

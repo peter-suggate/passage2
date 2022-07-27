@@ -4,10 +4,11 @@ import {
   FsmListener,
   FsmCommand,
   FsmRep,
+  FsmEffect,
 } from "./fsm-system-types";
 import { FsmSystemData } from "./fsm-system-types";
 import { AnyOptions, FsmOptions } from "./fsm-types";
-import { processCommand } from "./processCommand";
+import { processNextCommand } from "./processCommand";
 
 export const emptySystem = (): FsmSystemData => ({
   instances: new Map(),
@@ -25,17 +26,6 @@ export const commands =
   (rep: FsmRep) =>
     [rep[0], [...rep[1], ...commands]] as FsmRep;
 
-// export const send =
-//   <Options extends FsmOptions>(
-//     commandOrCommands: FsmCommand<Options> | FsmCommand<Options>[]
-//   ) =>
-//   (existing: FsmCommand<Options>[]): FsmCommand<Options>[] => {
-//     const commands = Array.isArray(commandOrCommands)
-//       ? commandOrCommands
-//       : [commandOrCommands];
-//     return [...existing, ...commands];
-//   };
-
 const notifyListeners = (
   listeners: DeepReadonly<FsmListener[]>,
   event: DeepReadonly<FsmInterpreterEvent<AnyOptions> | FsmCommand<AnyOptions>>,
@@ -44,76 +34,40 @@ const notifyListeners = (
   listeners.forEach((listener) => listener(event, latest));
 };
 
-export const processNextCommand = (rep: FsmRep): FsmRep => {
-  // assert(commands.length);
-
-  // const next = commands[0];
-
-  const { updatedInstances, newCommands, newEffects } = processCommand(
-    rep[1][0],
-    rep[0].instances
-  );
-
-  const resultData = {
-    effects: [...newEffects, ...rep[0].effects],
-    instances: updatedInstances,
-  };
-
-  const resultCommands = [...newCommands, ...rep[1].slice(1)];
-
-  return [resultData, resultCommands];
-};
-
-// export const processCommands =
-//   (listeners: FsmListener[] = []) =>
-//   (existing: FsmRep): FsmRep => {
-//     let result = existing[0];
-//     const allNewCommands = [];
-
-//     const commands = existing[1];
-
-//     for (const command of commands) {
-//       const [updated, newCommands] = processNextCommand(
-//         result,
-//         command
-//       );
-
-//       allNewCommands.push(...newCommands);
-
-//       notifyListeners(listeners, command, updated);
-
-//       result = updated;
-//     }
-
-//     return [result, allNewCommands];
-//   };
-
 export const exhaust =
   (listeners: FsmListener[] = []) =>
   (existing: FsmRep): FsmRep => {
-    let result = { ...existing };
+    let result: FsmRep = { ...existing };
 
     while (result[1].length) {
+      const command = result[1][0];
+
       result = processNextCommand(result);
+
+      notifyListeners(listeners, command, result[0]);
+
+      if (result[1][0] === command)
+        throw Error("A command was not popped: " + JSON.stringify(command));
     }
 
     return result;
-    // const allNewCommands = [];
+  };
 
-    // const commands = existing[1];
+export const tick =
+  (listeners: FsmListener[] = []) =>
+  (existing: FsmRep): FsmRep => {
+    let result: FsmRep = { ...existing };
 
-    // for (const command of commands) {
-    //   const [updated, newCommands] = processNextCommand<AnyOptions>(
-    //     result,
-    //     command
-    //   );
+    if (result[1].length) {
+      const command = result[1][0];
 
-    //   allNewCommands.push(...newCommands);
+      result = processNextCommand(result);
 
-    //   notifyListeners(listeners, command, updated);
+      notifyListeners(listeners, command, result[0]);
 
-    //   result = updated;
-    // }
+      if (result[1][0] === command)
+        throw Error("A command was not popped: " + JSON.stringify(command));
+    }
 
-    // return [result, allNewCommands];
+    return result;
   };

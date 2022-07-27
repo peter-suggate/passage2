@@ -59,7 +59,7 @@ export type ServiceInvocation<
 > = {
   src: KeyOf<Services>;
   onDone: Transition<States, Services, Actions, Context>;
-  onError: Transition<States, Services, Actions, Context>;
+  onError?: Transition<States, Services, Actions, Context>;
 };
 
 type StateDefinitionBase<
@@ -145,7 +145,8 @@ export type MachineServiceDefinition = FsmMachine<AnyOptions>;
 
 export type PromiseServiceDefinition<Context> = (
   context: Context,
-  event: FsmEvent
+  event: FsmEvent,
+  send?: (transitionName: string, value?: any) => void
 ) => Promise<unknown>;
 
 export type ServiceDefinition<Context> =

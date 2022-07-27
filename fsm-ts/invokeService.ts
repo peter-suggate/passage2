@@ -40,45 +40,46 @@ const invokePromiseService = <Options extends FsmOptions>(
   FsmServiceId,
   undefined | FsmEffect
 ] => {
+  const effectId = `${currentState.id}:${invocation.src}`;
+
   const makePromise = () =>
     definition(currentState.context, event)
       .then((value) => {
+        console.warn("promise completed");
         const newCommands: FsmCommand<AnyOptions>[] = [
           {
-            type: "exit child service",
-            id: currentState.id,
-            child: id,
-            // result: value,
+            type: "settle effect",
+            result: "success",
+            commands: [
+              {
+                id: currentState.id,
+                type: "transition",
+                name: "onDone",
+                value,
+              },
+            ],
+            effectId,
           },
         ];
-
-        invocation.onDone &&
-          newCommands.push({
-            id: currentState.id,
-            type: "transition",
-            name: "onDone",
-            value,
-          });
 
         return newCommands;
       })
       .catch((error) => {
         const newCommands: FsmCommand<AnyOptions>[] = [
           {
-            type: "exit child service",
-            id: currentState.id,
-            child: id,
-            // result: error,
+            type: "settle effect",
+            result: "error",
+            commands: [
+              {
+                id: currentState.id,
+                type: "transition",
+                name: "onError",
+                value: error,
+              },
+            ],
+            effectId,
           },
         ];
-
-        invocation.onError &&
-          newCommands.push({
-            type: "transition",
-            id: currentState.id,
-            name: "onError",
-            value: error,
-          });
 
         return newCommands;
       });
@@ -93,8 +94,9 @@ const invokePromiseService = <Options extends FsmOptions>(
     id,
     {
       parent: currentState.id,
-      id: `${currentState.id}:${invocation.src}`,
+      id: effectId,
       name: invocation.src,
+      status: "not started",
       execute: makePromise,
     },
   ];

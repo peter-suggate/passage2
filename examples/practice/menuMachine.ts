@@ -8,7 +8,7 @@ type Context = {
 };
 
 export const menuMachine = createMachine({
-  id: "passage app",
+  id: "Passage",
   context: {
     piece: undefined,
   },
@@ -25,12 +25,14 @@ export const menuMachine = createMachine({
       invoke: {
         src: "practice",
         onDone: { target: "presenting options" },
+        onError: { target: "presenting options" },
       },
     },
     "choosing random piece": {
       invoke: {
         src: "random piece chooser",
         onDone: { target: "practicing", actions: ["store chosen piece"] },
+        onError: { target: "presenting options" },
       },
     },
   },

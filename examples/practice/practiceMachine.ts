@@ -1,8 +1,14 @@
 import { createMachine } from "../../fsm-ts/createMachine";
+import { FsmEvent } from "../../fsm-ts/fsm-types";
+
+type Context = {
+  notes: string[];
+};
 
 export const practiceMachine = createMachine({
   id: "practice session",
   initial: "preparing audio",
+  context: { notes: [] } as Context,
   states: {
     "preparing audio": {
       invoke: {
@@ -12,6 +18,11 @@ export const practiceMachine = createMachine({
     },
     listening: {
       on: {
+        "note detected": {
+          target: "listening",
+          actions: ["add note"],
+          value: "D",
+        },
         finish: {
           target: "finishing",
         },
@@ -24,6 +35,15 @@ export const practiceMachine = createMachine({
   services: {
     prepareAudio: async () => {
       console.log("TODO implement prepare audio");
+    },
+  },
+  actions: {
+    "add note": (context: Context, event: FsmEvent) => {
+      console.log(context, event);
+      return {
+        ...context,
+        notes: context.notes.concat(event.value),
+      };
     },
   },
 });

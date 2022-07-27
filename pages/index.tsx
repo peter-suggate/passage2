@@ -4,6 +4,8 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { FsmRenderer } from "../fsm-renderer/FsmRenderer";
 import styles from "../styles/Home.module.css";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import autoAnimate from "@formkit/auto-animate";
 
 // const ComponentWithNoSSR = dynamic(
 //   () => import('../fsm-renderer/FsmRenderer'),

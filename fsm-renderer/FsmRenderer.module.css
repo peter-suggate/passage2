@@ -1,3 +1,15 @@
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  background-color: #ddd;
+}
+
+.fsm {
+  flex: 1;
+}
+
 .fsmRenderer {
-  background-color: #eee;
 }

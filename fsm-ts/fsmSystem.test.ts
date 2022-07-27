@@ -37,7 +37,7 @@ it("supports starting a running machine and processing events to get it into its
     exhaust()
   );
 
-  expect(result[0].instances.get("running-machine")?.state.value).toBe("state");
+  expect(result[0].instances.get("machine")?.state.value).toBe("state");
   expect(result[1]).toMatchObject([]);
 });
 
@@ -60,13 +60,11 @@ it("updates current state upon transition", async () => {
   const result = pipe(
     empty,
     command({ type: "instantiate", machine }),
-    command({ type: "transition", id: "running-machine", name: "transition" }),
+    command({ type: "transition", id: "machine", name: "transition" }),
     exhaust()
   );
 
-  expect(result[0].instances.get("running-machine")!.state.value).toBe(
-    "state2"
-  );
+  expect(result[0].instances.get("machine")!.state.value).toBe("state2");
 });
 
 it("invokes actions upon state entry and exit", async () => {
@@ -105,7 +103,7 @@ it("invokes actions upon state entry and exit", async () => {
 
   expect(state1Entry).toBeCalledWith(
     { value: "initial context" },
-    { type: "transition", id: "running-machine", name: null, value: undefined }
+    { type: "transition", id: "machine", name: null, value: undefined }
   );
 
   const value = "transition value";
@@ -114,7 +112,7 @@ it("invokes actions upon state entry and exit", async () => {
     result,
     command({
       type: "transition",
-      id: "running-machine",
+      id: "machine",
       name: "transition",
       value,
     }),
@@ -123,17 +121,15 @@ it("invokes actions upon state entry and exit", async () => {
 
   expect(state1Exit).toBeCalledWith(
     { value: "state1Entry result" },
-    { type: "transition", id: "running-machine", name: "transition", value }
+    { type: "transition", id: "machine", name: "transition", value }
   );
 
   expect(state2Entry).toBeCalledWith(
     { value: "state1Exit result" },
-    { type: "transition", id: "running-machine", name: "transition", value }
+    { type: "transition", id: "machine", name: "transition", value }
   );
 
-  expect(result[0].instances.get("running-machine")!.state.value).toBe(
-    "state2"
-  );
+  expect(result[0].instances.get("machine")!.state.value).toBe("state2");
 });
 
 // const promiseObject = new Promise((res) => res(undefined));
@@ -180,9 +176,11 @@ it("supports invoking a promise upon entering a state", async () => {
     exhaust()
   );
 
-  const childCommandsOnDone = await result[0].effects[0].execute();
+  const effect = result[0].effects[0];
+  if (effect.status !== "not started") throw Error();
+  const childCommandsOnDone = await effect.execute();
   // const child = Array.from(
-  //   result.instances.get("running-machine")!.state.children.values()
+  //   result.instances.get("machine")!.state.children.values()
   // )[0];
 
   // const childCommandsOnDone =
@@ -190,10 +188,13 @@ it("supports invoking a promise upon entering a state", async () => {
 
   result = pipe(result, commands(childCommandsOnDone), exhaust());
 
-  expect(result[0].instances.get("running-machine")!.state).toMatchObject({
+  expect(result[0].instances.get("machine")!.state).toMatchObject({
     context: { value: "promise result" },
     value: "final",
   });
+
+  console.log(result[0].effects);
+  expect(result[0].effects.length).toBe(0);
 });
 
 it("supports invoking a (child) machine", async () => {
@@ -268,40 +269,16 @@ it("supports invoking a (child) machine", async () => {
     command({ type: "instantiate", machine: parentMachine }),
     command({
       type: "transition",
-      id: "running-child",
+      id: "child",
       name: "retrieved",
       value: TODOS,
     }),
     exhaust()
   );
 
-  expect(result[0].instances.get("running-parent")?.state).toMatchObject({
+  expect(result[0].instances.get("parent")?.state).toMatchObject({
     context: {
       todos: TODOS,
     },
   });
 });
-
-// describe("explicit stepping through changes to the service", () => {
-//   it("produces a step for each event during a simple transition", async () => {
-//     const machine = createMachine({
-//       initial: "s1",
-//       states: { s1: { on: { t: { target: "s2" } } }, s2: { type: "final" } },
-//     });
-
-//     const stepper = jest.fn(async (event: AnyServiceEvent) => {});
-
-//     const service = createService(machine, { stepper });
-
-//     const listener = jest.fn();
-//     service.subscribe(listener);
-
-//     service.start();
-
-//     service.transition("t");
-
-//     await service.tick();
-
-//     expect(stepper.mock.calls).toEqual(listener.mock.calls);
-//   });
-// });

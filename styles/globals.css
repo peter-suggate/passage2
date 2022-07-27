@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 html,
 body {
   padding: 0;
@@ -13,4 +17,91 @@ a {
 
 * {
   box-sizing: border-box;
+}
+
+.my-node-enter {
+  opacity: 0;
+}
+.my-node-enter-active {
+  opacity: 1;
+  transition: opacity 500ms;
+}
+.my-node-exit {
+  opacity: 1;
+}
+.my-node-exit-active {
+  opacity: 0;
+  transition: opacity 500ms;
+}
+/* 
+.commandQueueList {
+  opacity: 1;
+  transform: translateX(0);
+} */
+
+.commandQueueList-enter {
+  opacity: 0;
+  transform: translateX(200px);
+}
+.commandQueueList-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 500ms;
+}
+.commandQueueList-exit {
+  opacity: 1;
+}
+.commandQueueList-exit-active {
+  opacity: 0;
+  transform: translateX(-200px);
+  transition: opacity 500ms;
+}
+
+.animate.pop {
+  animation-duration: 0.35s;
+  animation-name: animate-pop;
+  animation-timing-function: cubic-bezier(0.26, 0.53, 0.74, 1.48);
+}
+
+@keyframes animate-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6, 0.75);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1, 1);
+  }
+}
+
+.animate.emerge {
+  animation-duration: 0.35s;
+  animation-name: animate-emerge;
+  animation-timing-function: cubic-bezier(0.26, 0.53, 0.74, 1.48);
+}
+
+@keyframes animate-emerge {
+  0% {
+    opacity: 0;
+    box-shadow: 0px 0px 0px #898989, -0px -0px 0px #ffffff;
+  }
+
+  100% {
+    opacity: 1;
+    box-shadow: 8px 8px 26px #898989, -8px -8px 26px #ffffff;
+  }
+}
+
+.flex-spacer {
+  flex: 1;
+}
+
+.MuiButtonBase-root {
+  border-radius: 50%;
+  /* background: #e0e0e0; */
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 5px 5px 9px rgb(0 0 0 / 30%), -5px -5px 9px rgb(255 255 255 / 40%);
+
+  padding: 3px;
 }

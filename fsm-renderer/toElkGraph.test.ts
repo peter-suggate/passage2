@@ -34,22 +34,22 @@ it("defines a node for active state plus any of its transitions", async () => {
     id: "root",
     children: [
       {
-        id: "running-machine",
+        id: "machine",
         children: [
-          { id: "running-machine:state1" },
-          { id: "running-machine:state1-transition1" },
-          { id: "running-machine:state1-transition2" },
+          { id: "machine:state1" },
+          { id: "machine:state1-transition1" },
+          { id: "machine:state1-transition2" },
         ],
         edges: [
           {
-            id: "e-running-machine:transition1",
-            sources: ["running-machine:state1"],
-            targets: ["running-machine:state1-transition1"],
+            id: "e-machine:transition1",
+            sources: ["machine:state1"],
+            targets: ["machine:state1-transition1"],
           },
           {
-            id: "e-running-machine:transition2",
-            sources: ["running-machine:state1"],
-            targets: ["running-machine:state1-transition2"],
+            id: "e-machine:transition2",
+            sources: ["machine:state1"],
+            targets: ["machine:state1-transition2"],
           },
         ],
       },
@@ -93,21 +93,17 @@ it("defines a top-level node for each running machine or promise as well as an e
 
   expect(toReadonlyElkGraph(system)).toMatchObject({
     id: "root",
-    children: [
-      { id: "running-parent" },
-      { id: "running-child" },
-      { id: "running-child:childPromise" },
-    ],
+    children: [{ id: "parent" }, { id: "child" }, { id: "child:childPromise" }],
     edges: [
       {
-        id: "e-running-parent-running-child",
-        sources: ["running-parent"],
-        targets: ["running-child"],
+        id: "e-parent-child",
+        sources: ["parent:state"],
+        targets: ["child"],
       },
       {
-        id: "e-running-child:childPromise",
-        sources: ["running-child"],
-        targets: ["running-child:childPromise"],
+        id: "e-child:childPromise",
+        sources: ["child"],
+        targets: ["child:childPromise"],
       },
     ],
   });

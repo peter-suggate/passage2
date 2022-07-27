@@ -1,4 +1,4 @@
-import ELK, { ElkNode } from "elkjs";
+import ELK, { ElkNode } from "elkjs/lib/elk-api";
 import { FsmCommandStore, FsmStore } from "../fsm-ts/fsm-store-types";
 import { FsmListener, FsmSystemData } from "../fsm-ts/fsm-system-types";
 import { ElkNodeWithMetadata } from "./fsm-render-types";
@@ -9,12 +9,30 @@ type ElkGraphType = ElkNodeWithMetadata;
 type OutGraphType = ReturnType<typeof toReactFlow>;
 type MergedGraphType = ReturnType<typeof toMergedGraph>;
 
-const toLayout = async (graph: ElkGraphType) => {
-  const elk = new ELK();
+export const toLayout = async (graph: ElkGraphType) => {
+  // const elk = new ELK();
 
-  const layout = await elk.layout(graph as ElkNode);
+  const ELK = require("elkjs/lib/elk-api.js");
 
-  //   console.log(JSON.stringify(layout, undefined, 2));
+  const elk = new ELK({
+    workerFactory: function (url: any) {
+      // the value of 'url' is irrelevant here
+      const { Worker } = require("elkjs/lib/elk-worker.js"); // non-minified
+      return new Worker(url);
+    },
+  });
+
+  const layout = await elk.layout({
+    ...graph,
+    defaultLayoutOptions: {
+      "org.eclipse.elk.layered.spacing.nodeNode": "150",
+      "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "100",
+      "org.eclipse.elk.layered.spacing.baseValue": "100",
+    },
+    // edges: graph.edges?.slice(1),
+  } as ElkNode);
+
+  // console.log(JSON.stringify(layout, undefined, 2));
 
   return layout as ElkGraphType;
 };
@@ -42,7 +60,6 @@ export const graphStore = (
   let prevLayout: MergedGraphType | undefined;
 
   const updateImpl = async (event: any, latest: FsmSystemData) => {
-    // prevLayout = snapshot;
     const layout = await toLayout(toElkGraph(commandStore.send)(latest));
 
     const graph = toMergedGraph(layout, prevLayout);

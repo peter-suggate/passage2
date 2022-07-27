@@ -17,7 +17,7 @@ it("initializes the running machine with its initial state and context", () => {
   expect(runningMachine.state).toEqual({
     parent: null,
     context: { value: "initial context value" },
-    id: "running-machine",
+    id: "machine",
     children: new Map(),
     value: null,
   });

@@ -1,28 +1,28 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
-import { SpawnedService } from "../fsm-ts/fsm-types";
+import { ElkNodePromiseMetadata } from "./fsm-render-types";
+// import { SpawnedService } from "../fsm-ts/fsm-types";
 import styles from "./Nodes.module.css";
 
 type Props = {
-  data: { value: SpawnedService };
+  data: { metadata: ElkNodePromiseMetadata };
 };
 
-const serviceToViewModel = (service: SpawnedService) => {
-  return { ...service };
-};
+// const serviceToViewModel = (service: SpawnedService) => {
+//   return { ...service };
+// };
 
 export const PromiseNode = ({ data }: Props) => {
-  const [vm, setVM] = React.useState(serviceToViewModel(data.value));
+  // const [vm, setVM] = React.useState(serviceToViewModel(data.value));
+  // React.useEffect(() => {
+  //   const promiseAwaiter = async () => {
+  //     await data.value.promise;
+  //   };
 
-  React.useEffect(() => {
-    const promiseAwaiter = async () => {
-      await data.value.promise;
-    };
-
-    promiseAwaiter().then(() => {
-      setVM(serviceToViewModel(data.value));
-    });
-  }, [data.value]);
+  //   promiseAwaiter().then(() => {
+  //     setVM(serviceToViewModel(data.value));
+  //   });
+  // }, [data.value]);
 
   //   const onChange = React.useCallback(
   //     (evt: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,7 +34,7 @@ export const PromiseNode = ({ data }: Props) => {
   return (
     <div className={styles.promiseNode}>
       {/* <Handle type="target" position={Position.Top} /> */}
-      <div>{data.value.status}</div>
+      <div>{data.metadata.label}</div>
       {/* <div>
         <label htmlFor="text">Text:</label>
         <input id="text" name="text" onChange={onChange} />
@@ -45,7 +45,7 @@ export const PromiseNode = ({ data }: Props) => {
         id="a"
         // style={handleStyle}
       />
-      {/* <Handle type="source" position={Position.Bottom} id="b" /> */}
+      <Handle type="source" position={Position.Bottom} id="b" />
     </div>
   );
 };

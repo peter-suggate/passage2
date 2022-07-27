@@ -1,8 +1,9 @@
 import { DeepReadonly } from "./fsm-core-types";
 import { AnyState } from "./fsm-system-types";
-import { isMachineService, stateHasTransitions } from "./fsm-type-guards";
+import { isMachineService } from "./fsm-type-guards";
 import {
   AnyMachine,
+  AnyStateDefinition,
   AnyTransitionStateDefinition,
   FsmMachine,
   FsmOptions,
@@ -10,23 +11,64 @@ import {
   StateDefinitionForOptions,
 } from "./fsm-types";
 
-export const stateTransitions = (
-  id: AnyState["value"],
-  state: DeepReadonly<AnyTransitionStateDefinition>,
-  invokeOnly?: boolean
+type TransitionOptions = {
+  includeInvokeTransitions?: boolean;
+  includeOnTransitions?: boolean;
+};
+
+export const stateHasTransitions = (
+  state: DeepReadonly<AnyStateDefinition>,
+  options: TransitionOptions
+) =>
+  !!(
+    (options.includeInvokeTransitions && state.invoke) ||
+    (options.includeOnTransitions &&
+      state.type !== "final" &&
+      Object.keys(state.on || {}).length)
+  );
+
+export const stateTransitionDefinitions = (
+  state: DeepReadonly<AnyStateDefinition>,
+  options: TransitionOptions
 ) => {
   const transitionState = state as AnyTransitionStateDefinition;
 
   const transitions = [];
 
-  if (invokeOnly && transitionState.invoke?.onDone) {
+  if (options.includeInvokeTransitions && transitionState.invoke?.onDone) {
+    transitions.push("onDone");
+  }
+  if (options.includeInvokeTransitions && transitionState.invoke?.onError) {
+    transitions.push("onError");
+  }
+
+  if (!options.includeOnTransitions) return transitions;
+
+  return [
+    ...transitions,
+    ...Object.entries(transitionState.on || {}).map(
+      ([name, transition]) => name
+    ),
+  ];
+};
+
+export const stateTransitions = (
+  id: AnyState["value"],
+  state: DeepReadonly<AnyStateDefinition>,
+  options: TransitionOptions
+) => {
+  const transitionState = state as AnyTransitionStateDefinition;
+
+  const transitions = [];
+
+  if (options.includeInvokeTransitions && transitionState.invoke?.onDone) {
     transitions.push({
       name: `onDone`,
       source: id,
       target: transitionState.invoke?.onDone.target,
     });
   }
-  if (invokeOnly && transitionState.invoke?.onError) {
+  if (options.includeInvokeTransitions && transitionState.invoke?.onError) {
     transitions.push({
       name: `onError`,
       source: id,
@@ -34,7 +76,7 @@ export const stateTransitions = (
     });
   }
 
-  if (invokeOnly) return transitions;
+  if (!options.includeOnTransitions) return transitions;
 
   return [
     ...transitions,
@@ -46,14 +88,23 @@ export const stateTransitions = (
   ];
 };
 
-export const machineTransitions = (machine: AnyMachine, invokeOnly?: boolean) =>
+export const machineTransitions = (
+  machine: AnyMachine,
+  options: TransitionOptions & {
+    state?: string;
+  }
+) =>
   Object.entries(machine.states)
     .filter(
       (entry) =>
-        stateHasTransitions(entry[1]) && (entry[1].on || entry[1].invoke)
+        stateHasTransitions(entry[1], {
+          includeOnTransitions: true,
+        }) &&
+        ((entry[1].type !== "final" && entry[1].on) || entry[1].invoke) &&
+        (!options.state || options.state === entry[0])
     )
     .flatMap(([id, state]) =>
-      stateTransitions(id, state as AnyTransitionStateDefinition, invokeOnly)
+      stateTransitions(id, state as AnyTransitionStateDefinition, options)
     );
 
 export const machineFinalState = (machine: AnyMachine, invokeOnly?: boolean) =>

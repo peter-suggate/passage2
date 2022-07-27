@@ -14,6 +14,9 @@ type Subscribable<T> = {
   subscribe: (listener: T) => () => void;
   //   subscribeCommandQueue: (listener: FsmListener) => () => void;
 };
+type EffectsProcessable = {
+  waitForAllEffects: () => Promise<void>;
+};
 type ReceivesEvents = {
   send: <Options extends FsmOptions>(
     commandOrCommands: FsmCommand<Options>
@@ -24,7 +27,12 @@ type Tickable = { tick: () => void; exhaust: () => void };
 type AccessibleData<T> = { data: () => T };
 // type Updatable = { update: (data: FsmSystemData) => void };
 
-export type FsmCommandQueueListener = (command: FsmCommand<AnyOptions>) => void;
+export type FsmCommandQueueEvent = { command: FsmCommand<AnyOptions> } & (
+  | { kind: "sent" }
+  | { kind: "processed" }
+);
+
+export type FsmCommandQueueListener = (event: FsmCommandQueueEvent) => void;
 
 export type FsmCommandStore = ReceivesEvents &
   Tickable &
@@ -33,5 +41,6 @@ export type FsmCommandStore = ReceivesEvents &
   AccessibleData<FsmCommand<AnyOptions>[]>;
 
 export type FsmStore = AccessibleData<FsmSystemData> &
+  EffectsProcessable &
   Subscribable<FsmListener> &
   Debuggable;
