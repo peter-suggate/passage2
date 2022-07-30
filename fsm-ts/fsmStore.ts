@@ -12,6 +12,7 @@ import type {
   FsmCommandStore,
   FsmStore,
 } from "./fsm-store-types";
+import { sleep } from "./fsm-core-util";
 
 export const commandStore = (): FsmCommandStore => {
   let commands: FsmCommand<AnyOptions>[] = [];
@@ -47,6 +48,8 @@ export const commandStore = (): FsmCommandStore => {
       listeners.forEach((l) => l({ kind: "processed", command: next }));
     }
   };
+
+  setInterval(tickImpl, 0);
 
   const exhaustImpl = () => {
     while (commands.length) {
@@ -91,7 +94,9 @@ export const fsmStore =
         ...newData,
         effects: newData.effects.map((effect) => {
           if (effect.status === "not started") {
-            const promise = (effect as UnstartedEffect).execute();
+            const promise = (effect as UnstartedEffect).execute((command) =>
+              commandStore.send(command)
+            );
 
             promise.then((commands) => {
               commands.map(commandStore.send);

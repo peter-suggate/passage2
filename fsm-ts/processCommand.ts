@@ -9,7 +9,6 @@ import type {
   FsmServiceId,
   FsmState,
   FsmRep,
-  SettledEffect,
 } from "./fsm-system-types";
 import { machineFinalState } from "./fsm-transforms";
 import { AnyOptions, FsmEvent, FsmOptions } from "./fsm-types";
@@ -178,28 +177,37 @@ export const processNextCommand = <Options extends FsmOptions>(
         });
 
       name !== null &&
+        transitionResult.transitioned &&
         newCommands.push({
           id,
           type: "exit state",
           value: state.value,
         });
 
-      newCommands.push({
-        id,
-        type: "enter",
-        value: transitionResult.value,
-      });
+      transitionResult.transitioned &&
+        newCommands.push({
+          id,
+          type: "enter",
+          value: transitionResult.value,
+        });
 
-      newCommands.push(
-        ...transitionResult.services.map(
-          (invocation) =>
-            ({
-              type: "invoke",
-              id,
-              invocation,
-            } as FsmCommand<Options>)
-        )
-      );
+      transitionResult.transitioned &&
+        newCommands.push({
+          id,
+          type: "enter complete",
+        });
+
+      transitionResult.transitioned &&
+        newCommands.push(
+          ...transitionResult.services.map(
+            (invocation) =>
+              ({
+                type: "invoke",
+                id,
+                invocation,
+              } as FsmCommand<Options>)
+          )
+        );
 
       // If a final transition
       const finalState = machineFinalState(machine);
@@ -222,13 +230,31 @@ export const processNextCommand = <Options extends FsmOptions>(
       return pipe(rep, poppedCommand, addedCommands(newCommands));
     }
     case "exit state": {
-      return poppedCommand(rep);
+      return pipe(
+        rep,
+        poppedCommand,
+        updatedMachineState(id, { ...state, metadata: "removed" })
+      );
     }
     case "enter": {
       return pipe(
         rep,
         poppedCommand,
-        updatedMachineState(id, { ...state, value: command.value })
+        updatedMachineState(id, {
+          ...state,
+          value: command.value,
+          metadata: "added",
+        })
+      );
+    }
+    case "enter complete": {
+      return pipe(
+        rep,
+        poppedCommand,
+        updatedMachineState(id, {
+          ...state,
+          metadata: "no-change",
+        })
       );
     }
     case "execute actions": {

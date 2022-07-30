@@ -14,10 +14,10 @@ const PIECES = [
   "song of the wind",
 ];
 
-export const chooseRandomPieceMachine = createMachine<Context>({
+export const chooseRandomPieceMachine = createMachine({
   id: "Random Chooser",
   initial: "fetching list",
-  context: { piece: undefined, list: [] },
+  context: { piece: undefined, list: [] } as Context,
   states: {
     "fetching list": {
       invoke: {

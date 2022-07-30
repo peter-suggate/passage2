@@ -81,15 +81,35 @@ a {
   animation-timing-function: cubic-bezier(0.26, 0.53, 0.74, 1.48);
 }
 
+.react-flow__node-machineNode {
+  /* transition: 0.3s all; */
+  /* animation-duration: 0.35s;
+  animation-name: animate-emerge;
+  animation-timing-function: cubic-bezier(0.26, 0.53, 0.74, 1.48); */
+}
+
+.react-flow__node-stateNode > div {
+  /* animation-duration: 1.35s; */
+  /* animation-name: animate-emerge; */
+  /* animation-timing-function: cubic-bezier(0.26, 0.53, 0.74, 1.48, 1); */
+  /* animation-timing-function: cubic-bezier(0.26, 0.53, 0.74, 1); */
+}
+
 @keyframes animate-emerge {
   0% {
-    opacity: 0;
-    box-shadow: 0px 0px 0px #898989, -0px -0px 0px #ffffff;
+    /* opacity: 0; */
+    /* height: 0; */
+    background: linear-gradient(145deg, #cacaca, #f0f0f0);
+    box-shadow: 0px 0px 0px #b8b8b8, -0px -0px 0px #ffffff;
   }
 
   100% {
-    opacity: 1;
-    box-shadow: 8px 8px 26px #898989, -8px -8px 26px #ffffff;
+    /* opacity: 1; */
+    /* box-shadow: 8px 8px 26px #898989, -8px -8px 26px #ffffff; */
+    /* height: 300px; */
+    border-radius: 13px;
+    background: linear-gradient(145deg, #cacaca, #f0f0f0);
+    box-shadow: 18px 18px 36px #b8b8b8, -18px -18px 36px #ffffff;
   }
 }
 
@@ -103,5 +123,5 @@ a {
   background: rgba(255, 255, 255, 0.1);
   box-shadow: 5px 5px 9px rgb(0 0 0 / 30%), -5px -5px 9px rgb(255 255 255 / 40%);
 
-  padding: 3px;
+  padding: 4px !important;
 }

@@ -1,4 +1,5 @@
 import { createMachine } from "../../fsm-ts/createMachine";
+import { sleep } from "../../fsm-ts/fsm-core-util";
 import { FsmEvent } from "../../fsm-ts/fsm-types";
 
 type Context = {
@@ -17,9 +18,14 @@ export const practiceMachine = createMachine({
       },
     },
     listening: {
+      invoke: {
+        src: "notes generator",
+        onDone: { target: "finishing" },
+        onError: { target: "finishing" },
+      },
       on: {
         "note detected": {
-          target: "listening",
+          // target: "listening",
           actions: ["add note"],
           value: "D",
         },
@@ -33,8 +39,25 @@ export const practiceMachine = createMachine({
     },
   },
   services: {
-    prepareAudio: async () => {
-      console.log("TODO implement prepare audio");
+    prepareAudio: async (
+      context: Context,
+      event: FsmEvent,
+      send?: (transitionName: string, value?: any) => void
+    ) => {
+      // console.log("TODO implement prepare audio");
+      // console.log(send);
+    },
+    "notes generator": (
+      context: Context,
+      event: FsmEvent,
+      send?: (transitionName: string, value?: any) => void
+    ) => {
+      return new Promise((res) => {
+        window.onkeydown = (e) => {
+          console.log(e);
+          send && send("note detected", e.key);
+        };
+      });
     },
   },
   actions: {

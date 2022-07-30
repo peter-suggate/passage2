@@ -33,9 +33,7 @@ export const MachineNode = ({ data }: Props) => {
     <div
       className={`${styles.machineNode} ${
         data.isActive ? styles.isActive : ""
-      } ${
-        data.hasChildren ? styles.hasChildren : ""
-      } animate emerge flex flex-col`}
+      } ${data.hasChildren ? styles.hasChildren : ""} flex flex-col`}
       style={{ width, height: height }}
     >
       <div className={`text-3xl font-bold ${styles.title}`}>{data.value}</div>

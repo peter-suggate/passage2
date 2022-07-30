@@ -1,11 +1,10 @@
-import { ElkEdge } from "elkjs";
+import { ElkEdge, ElkNode } from "elkjs";
 import { MarkerType } from "react-flow-renderer";
 import { DeepReadonly } from "../fsm-ts/fsm-core-types";
 import { FsmRunningMachine } from "../fsm-ts/fsm-system-types";
 import {
   machineStateDefinition,
   stateTransitionDefinitions,
-  stateTransitions,
 } from "../fsm-ts/fsm-transforms";
 import type {
   AnyStateDefinition,
@@ -108,8 +107,8 @@ export const guessStateNodeDimensions = <Options extends FsmOptions>(
   return {
     width: Math.max(
       220,
-      sizeForTransitions.width,
-      sizeForInvoke.width,
+      sizeForTransitions.width + 2 * 15,
+      sizeForInvoke.width + 2 * 15,
       id.length * fontWidth()
     ),
     height:
@@ -119,28 +118,60 @@ export const guessStateNodeDimensions = <Options extends FsmOptions>(
 
 export const guessTransitionNodeDimensions =
   (forInvoke?: boolean) => (label: string) => ({
-    width: Math.max(200, label.length * fontWidth()),
-    height: forInvoke ? 20 : 46,
+    width: Math.max(forInvoke ? 190 : 220, label.length * fontWidth()),
+    height: forInvoke ? 18 : 46,
   });
 
 export const guessInvokeNodeDimensions = (
   stateDefinition: DeepReadonly<AnyStateDefinition>,
   includePad?: boolean
 ) => {
+  const transitions = stateTransitionDefinitions(stateDefinition, {
+    includeInvokeTransitions: true,
+  });
+
   const sizeForTransitions = accumulateSizes(
-    stateTransitionDefinitions(stateDefinition, {
-      includeInvokeTransitions: true,
-    }),
+    transitions,
     guessTransitionNodeDimensions(true)
   );
 
   return sizeForTransitions.height
     ? {
-        width: sizeForTransitions.width,
-        height: sizeForTransitions.height + 44 + (includePad ? 50 : 0),
+        width: sizeForTransitions.width + (includePad ? 2 * 15 : 0),
+        height:
+          25 +
+          (includePad ? transitions.length * 15 : 0) +
+          sizeForTransitions.height +
+          (includePad ? 15 : 0),
       }
     : { width: 0, height: 0 };
 };
+
+export const layoutVertically =
+  (options: { padX: number; padY: number; gapY: number }) =>
+  (nodes: DeepReadonly<ElkNode>[]) => {
+    const { padX, padY, gapY } = options;
+
+    let accum = 0;
+
+    const width = nodes.reduce(
+      (prev, cur) => Math.max(cur.width || 0, prev),
+      0
+    );
+
+    return nodes.map((node) => {
+      const result = {
+        ...node,
+        width,
+        x: padX,
+        y: padY + accum + gapY,
+      };
+
+      accum += (node.height || 0) + gapY;
+
+      return result;
+    });
+  };
 
 export const machineNodeHeaderHeight = 32;
 
@@ -203,8 +234,8 @@ const mergeGraphWithPrevious = (
   prevNodes: ElkNodeWithParent[],
   prevEdges: ElkEdge[]
 ): { nodes: FsmRendererNode[]; edges: FsmRendererEdge[] } => ({
-  nodes: graphDiff(nodes, prevNodes),
-  edges: graphDiff(edges, prevEdges),
+  nodes: graphDiff(nodes, prevNodes, true),
+  edges: graphDiff(edges, prevEdges, false),
 });
 
 export const toReactFlow = ({ nodes, edges }: Graph) => {
@@ -244,7 +275,6 @@ export const toReactFlow = ({ nodes, edges }: Graph) => {
         data: {
           value,
           metadata,
-          changeType,
           hasChildren: !!children?.length,
           width,
           height: height! + (children?.length ? machineNodeHeaderHeight : 0),
@@ -254,10 +284,6 @@ export const toReactFlow = ({ nodes, edges }: Graph) => {
                   metadata.type === "transition" && metadata.execute!();
                 }
               : undefined,
-          // onClick:
-          //   nodeType === "transition"
-          //     ? () => metadata.service.transition(value)
-          //     : undefined,
         },
         parentNode: parent?.id,
       };

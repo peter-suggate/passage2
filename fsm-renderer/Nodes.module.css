@@ -1,4 +1,5 @@
 .machineNode {
+  transition: 0.3s all;
   /* border: 2px solid #555;
   border-radius: 5px;
   background: transparent; */
@@ -50,17 +51,18 @@
 }
 
 .stateNode {
+  transition: 0.3s all;
   border-radius: 13px;
-  background: linear-gradient(145deg, #cacaca, #f0f0f0);
+  background: linear-gradient(145deg, #f0f0f0, #dadada);
+  /* background: linear-gradient(145deg, #cacaca, #f0f0f0); */
   box-shadow: 18px 18px 36px #b8b8b8, -18px -18px 36px #ffffff;
-  /* margin: 25px; */
   padding: 2px;
 }
 
 .stateNode .content {
-  background: #e7e7e7;
+  /* background: #e7e7e7; */
   border-radius: 13px;
-  box-shadow: inset 3px 3px 6px #d0d0d0, inset -3px -3px 6px #ffffff;
+  /* box-shadow: inset 3px 3px 6px #d0d0d0, inset -3px -3px 6px #ffffff; */
   height: 100%;
 }
 
@@ -87,18 +89,35 @@
 }
 
 .added {
-  transition: all 500ms;
-  /* opacity: 0.4; */
+  transition: all 350ms;
+  opacity: 0.3;
+}
+.stateNode.added {
+  background: linear-gradient(145deg, #cacaca, #f0f0f0);
+  box-shadow: 0px 0px 0px #b8b8b8, -0px -0px 0px #ffffff;
+}
+.transitionNode.added {
+  /* transform: translateX(-10px); */
+}
+.invokeNode.added {
+  /* transform: translateX(-10px); */
 }
 
 .no-change {
-  transition: all 500ms;
-  opacity: 1;
+  transition: all 350ms;
+  /* opacity: 1; */
 }
 
 .removed {
-  transition: all 500ms;
-  opacity: 0;
+  transition: all 350ms;
+  opacity: 0.3;
+  box-shadow: none;
+}
+.transitionNode.removed {
+  transform: translateX(-10px);
+}
+.invokeNode.removed {
+  transform: translateX(-10px);
 }
 
 .stateNode .finalContent {
@@ -131,8 +150,8 @@
   cursor: pointer;
   padding: 8px;
   border-radius: 15px;
-  box-shadow: inset 2px 2px 5px rgb(0 0 0 / 30%),
-    inset -1px -2px 5px rgb(255 255 255 / 40%);
+  box-shadow: inset 1px 1px 3px rgb(0 0 0 / 30%),
+    inset -1px -1px 3px rgb(255 255 255 / 100%);
 }
 
 .transitionNode.invoke {
@@ -167,9 +186,10 @@
 }
 
 .transitionNode .target {
-  text-transform: uppercase;
-  font-size: x-small;
+  text-transform: capitalize;
+  font-size: small;
   font-weight: 700;
+  color: #333;
 }
 
 .invokeNode {
@@ -181,12 +201,14 @@
   top: 25px;
 }
 
-.invokeContent {
+.invokeNode .invokeContent {
   height: 100%;
   padding: 5px 10px;
   border-radius: 5px;
-  background: #e2b1d7;
-  box-shadow: inset 3px 3px 6px #c59abb, inset -3px -3px 6px #ffc8f3;
+  /* background: #e2b1d7;
+  box-shadow: inset 3px 3px 6px #c59abb, inset -3px -3px 6px #ffc8f3; */
+  box-shadow: inset 1px 1px 5px rgb(0 0 0 / 30%),
+    inset -2px -2px 5px rgb(255 255 255);
 }
 
 .invokeContent .label {
@@ -201,6 +223,7 @@
   font-weight: 700;
   /* font-size: larger; */
   color: #111;
+  margin-left: 8px;
 }
 
 .invokeContent .target {

@@ -14,7 +14,7 @@ export type StepperFunc<Options extends FsmOptions> = (
 
 export type UnstartedEffect = {
   status: "not started";
-  execute: () => Promise<FsmCommand<AnyOptions>[]>;
+  execute: (send: SendCommandFunc) => Promise<FsmCommand<AnyOptions>[]>;
 };
 
 export type PendingEffect = {
@@ -79,6 +79,9 @@ type InterpreterCommand<Options extends FsmOptions> =
           value: KeyOf<Options["States"]>;
         }
       | {
+          type: "enter complete";
+        }
+      | {
           type: "exit state";
           value: KeyOf<Options["States"]>;
         }
@@ -92,6 +95,11 @@ type InterpreterCommand<Options extends FsmOptions> =
 export type FsmCommand<Options extends FsmOptions> = DeepReadonly<
   InterpreterCommand<Options>
 >;
+
+export type SendCommandFunc = <Options extends FsmOptions>(
+  commandOrCommands: FsmCommand<Options>
+  // | FsmCommand<Options>[]
+) => void;
 
 export type FsmInterpreterEvent<Options extends FsmOptions> = {
   id: FsmServiceId;
@@ -172,6 +180,8 @@ type State<Options extends FsmOptions> = {
 
   // Id of parent if a child machine.
   parent: FsmServiceId | null;
+
+  metadata: any;
 };
 
 export type FsmState<Options extends FsmOptions> = DeepReadonly<State<Options>>;
@@ -187,6 +197,7 @@ export type ApplyTransitionResult<Options extends FsmOptions> = DeepReadonly<{
     Options["Actions"],
     Options["Context"]
   >[];
+  transitioned: boolean;
 }>;
 
 export type FsmRunningMachines = Map<

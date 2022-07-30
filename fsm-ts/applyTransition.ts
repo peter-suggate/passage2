@@ -51,6 +51,7 @@ export const applyTransition =
         value: machine.initial,
         actions: stateDefinition.entry ? [stateDefinition.entry] : [],
         services: stateDefinition.invoke ? [stateDefinition.invoke] : [],
+        transitioned: true,
       };
     }
 
@@ -66,19 +67,27 @@ export const applyTransition =
     const transition = lookupTransition<Options>(currentState, transitionName);
     const { target, actions: transitionActions } = transition;
 
-    const newState = machine.states[target] as DeepReadonly<
-      StateDefinitionForOptions<Options>
-    >;
+    const newStateValue = target || state;
 
     // Build a list of fire-and-forget actions that are executed during the transition.
     const actions: DeepReadonly<KeyOf<Options["Actions"]>>[] = [];
-
-    currentState.exit && actions.push(currentState.exit);
-    transitionActions && actions.push(...transitionActions);
-    newState.entry && actions.push(newState.entry);
-
     const services = [];
-    newState.invoke && services.push(newState.invoke);
 
-    return { value: target, actions, services };
+    const newState = machine.states[newStateValue] as DeepReadonly<
+      StateDefinitionForOptions<Options>
+    >;
+
+    if (target) {
+      currentState.exit && actions.push(currentState.exit);
+    }
+
+    transitionActions && actions.push(...transitionActions);
+
+    if (target) {
+      newState.entry && actions.push(newState.entry);
+
+      newState.invoke && services.push(newState.invoke);
+    }
+
+    return { value: newStateValue, actions, services, transitioned: !!target };
   };

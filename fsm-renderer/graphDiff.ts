@@ -2,7 +2,8 @@ import type { GraphChangeDescription } from "./fsm-render-types";
 
 export const graphDiff = <T extends { id: string }>(
   current: T[],
-  previous: T[]
+  previous: T[],
+  includeRemoved: boolean
 ): (T & GraphChangeDescription)[] => {
   const removed = previous
     .filter((p) => !current.some((c) => c.id === p.id))
@@ -11,7 +12,7 @@ export const graphDiff = <T extends { id: string }>(
     );
 
   return [
-    // ...removed,
+    // ...(includeRemoved ? removed : []),
     ...current.map((c) => {
       const inPrevious = previous.some((p) => p.id === c.id);
 

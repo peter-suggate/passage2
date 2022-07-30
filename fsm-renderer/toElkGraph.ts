@@ -1,12 +1,11 @@
 import { ElkEdge, LayoutOptions } from "elkjs";
-import { DeepReadonly } from "../fsm-ts/fsm-core-types";
 import type {
   AnyRunningMachine,
   FsmEffect,
-  FsmCommand,
   FsmRunningMachine,
   FsmSystemData,
   FsmRunningMachines,
+  SendCommandFunc,
 } from "../fsm-ts/fsm-system-types";
 import {
   stateHasTransitions,
@@ -18,11 +17,10 @@ import {
   guessStateNodeDimensions,
   guessTransitionNodeDimensions,
   guessMachineNodeDimensions,
-  nodeIdForState,
   nodeIdForTransition,
-  transitionId,
   nodeIdForInvoke,
   guessInvokeNodeDimensions,
+  layoutVertically,
 } from "./fsm-render-util";
 
 const PADDING = 25;
@@ -58,6 +56,7 @@ const nodesForEffect = (effect: FsmEffect): ElkNodeWithMetadata[] => {
         type: "promise",
         promise: effect,
         label: effect.name,
+        changeType: "no-change",
         // instance: instance as unknown as AnyRunningMachine,
         //   state,
         // service: service as unknown as AnyService,
@@ -122,13 +121,14 @@ const nodesForActiveStateTransitions =
             },
             label: transition.name,
             target: transition.target,
+            changeType: instance.state.metadata,
           },
           layoutOptions: {
             ...COMMON_LAYOUT,
-            "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
-            "elk.alignment": "RIGHT",
-            "org.eclipse.elk.nodeSize.minimum": `(${desiredMinSize.width},${desiredMinSize.height})`,
+            // "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
+            // "org.eclipse.elk.nodeSize.minimum": `(${desiredMinSize.width},${desiredMinSize.height})`,
           },
+          ...desiredMinSize,
         })
       );
     }
@@ -149,7 +149,7 @@ const nodesForActiveStateInvoke = <Options extends FsmOptions>(
 
   if (!invoke) return [];
 
-  const minSize = guessInvokeNodeDimensions(stateDefinition);
+  const minSize = guessInvokeNodeDimensions(stateDefinition, true);
 
   return [
     {
@@ -157,15 +157,18 @@ const nodesForActiveStateInvoke = <Options extends FsmOptions>(
       metadata: {
         type: "invoke",
         label: invoke.src,
+        changeType: state.metadata,
       },
       layoutOptions: {
         ...COMMON_LAYOUT,
+        // "elk.algorithm": "fixed",
         "elk.algorithm": "box",
         "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-        "elk.padding": `[top=${30}, left=${15}, right=${15}, bottom=${15}]`,
-        "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
-        "org.eclipse.elk.nodeSize.minimum": `(${minSize.width},${minSize.height})`,
+        "elk.padding": `[top=${5}, left=${15}, right=${15}, bottom=${15}]`,
+        // "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
+        // "org.eclipse.elk.nodeSize.minimum": `(${minSize.width},${minSize.height})`,
       },
+      ...minSize,
       children: [...nodesForInvokeStateTransitions(instance)],
     },
   ];
@@ -194,15 +197,18 @@ const nodesForInvokeStateTransitions = <Options extends FsmOptions>(
         type: "transition",
         label: transition.name,
         target: transition.target,
+        instance,
+        changeType: state.metadata,
       },
       layoutOptions: {
         ...COMMON_LAYOUT,
         // "elk.padding": `[top=${25}, left=${25}, right=${25}, bottom=${25}]`,
-        "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
-        "org.eclipse.elk.nodeSize.minimum": `(${
-          guessTransitionNodeDimensions(true)(transition.name).width
-        },${guessTransitionNodeDimensions(true)(transition.name).height})`,
+        // "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
+        // "org.eclipse.elk.nodeSize.minimum": `(${
+        //   guessTransitionNodeDimensions(true)(transition.name).width
+        // },${guessTransitionNodeDimensions(true)(transition.name).height})`,
       },
+      ...guessTransitionNodeDimensions(true)(transition.name),
       // ...desiredMinSize,
     })
   );
@@ -252,21 +258,30 @@ const nodesForActiveState =
           label: state.value,
           definition: stateDefinition,
           hidden: true,
+          changeType: state.metadata,
         },
         layoutOptions: {
           ...COMMON_LAYOUT,
-          "elk.algorithm": "box",
-          "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+          "elk.algorithm": "fixed",
+          // "elk.algorithm": "box",
+          // "org.eclipse.elk.box.packingMode": "SIMPLE",
+          // "org.eclipse.elk.expandNodes": "true",
+          // "elk.direction": "RIGHT",
+          // "elk.aspectRatio": "1",
+          // "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+          // "org.eclipse.elk.layered.layering.strategy": "LONGEST_PATH",
+          // debugMode: "true",
           "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
           "org.eclipse.elk.nodeSize.minimum": `(${desiredMinSize.width},${desiredMinSize.height})`,
-          "elk.padding": `[top=${40}, left=${20}, right=${20}, bottom=${20}]`,
+          // "elk.padding": `[top=${40}, left=${20}, right=${20}, bottom=${20}]`,
+          "elk.padding": `[top=${0}, left=${0}, right=${0}, bottom=${0}]`,
         },
-        children: [
+        children: layoutVertically({ padX: 15, padY: 20, gapY: 10 })([
           ...nodesForActiveStateInvoke(instance),
           ...nodesForActiveStateTransitions(send)(instance),
-          // ...nodesForInvokeStateTransitions(instance),
-        ],
-        ...guessStateNodeDimensions(state.value, stateDefinition),
+        ]),
+        ...desiredMinSize,
+        // ...guessStateNodeDimensions(state.value, stateDefinition),
       },
     ];
   };
@@ -285,19 +300,20 @@ const nodesForRunningMachine =
           type: "machine",
           label: instance.machine.id,
           instance: instance as unknown as AnyRunningMachine,
+          changeType: instance.state.metadata,
         },
         layoutOptions: {
           ...COMMON_LAYOUT,
-          "elk.algorithm": "layered",
+          // "elk.algorithm": "layered",
+          "elk.algorithm": "fixed",
           "org.eclipse.elk.nodeSize.constraints": "MINIMUM_SIZE",
           "org.eclipse.elk.nodeSize.minimum": `(${desiredMinSize.width},${desiredMinSize.height})`,
-          "elk.padding": `[top=${padding.top}, left=${padding.left}, right=${padding.right}, bottom=${padding.bottom}]`,
+          // "elk.padding": `[top=${padding.top}, left=${padding.left}, right=${padding.right}, bottom=${padding.bottom}]`,
         },
-        children: [
+        children: layoutVertically({ padX: 30, padY: 30, gapY: 30 })([
           ...nodesForActiveState(send)(instance),
-          // ...nodesForActiveStateTransitions(send)(instance),
-        ],
-        // edges: edgesForActiveStateTransitions(instance),
+        ]),
+        // ...desiredMinSize,
       },
     ];
   };
@@ -407,19 +423,14 @@ const edgeToEffectFromParent =
     return edges;
   };
 
-type SendCommandFunc = <Options extends FsmOptions>(
-  commandOrCommands: DeepReadonly<FsmCommand<Options>>
-  // | FsmCommand<Options>[]
-) => void;
-
 export const toElkGraph =
-  <Options extends FsmOptions>(send?: SendCommandFunc) =>
+  (send?: SendCommandFunc) =>
   (system: FsmSystemData): ElkNodeWithMetadata => {
     // export const toElkGraph = () => (system: FsmSystemData): ElkNodeWithMetadata => {
     const graph: ElkNodeWithMetadata = {
       id: "root",
       layoutOptions: LAYOUT_OPTIONS,
-      metadata: { type: "root" },
+      metadata: { type: "root", changeType: "no-change" },
       children: [
         ...Array.from(system.instances.values()).flatMap(
           nodesForRunningMachine(send)

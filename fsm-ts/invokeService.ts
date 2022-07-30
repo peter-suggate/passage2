@@ -7,6 +7,7 @@ import type {
   FsmCommand,
   FsmServiceId,
   FsmEffect,
+  SendCommandFunc,
 } from "./fsm-system-types";
 import type {
   AnyOptions,
@@ -42,10 +43,20 @@ const invokePromiseService = <Options extends FsmOptions>(
 ] => {
   const effectId = `${currentState.id}:${invocation.src}`;
 
-  const makePromise = () =>
-    definition(currentState.context, event)
+  const makePromise = (send?: SendCommandFunc) =>
+    definition(
+      currentState.context,
+      event,
+      (transitionName, value) =>
+        send &&
+        send({
+          type: "transition",
+          id: currentState.id,
+          name: transitionName,
+          value,
+        })
+    )
       .then((value) => {
-        console.warn("promise completed");
         const newCommands: FsmCommand<AnyOptions>[] = [
           {
             type: "settle effect",

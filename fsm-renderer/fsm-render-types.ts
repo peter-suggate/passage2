@@ -1,7 +1,11 @@
 import type { ElkEdge, ElkNode } from "elkjs";
 import { DeepReadonly } from "../fsm-ts/fsm-core-types";
-import type { AnyRunningMachine, FsmEffect } from "../fsm-ts/fsm-system-types";
-import type { AnyStateDefinition } from "../fsm-ts/fsm-types";
+import type {
+  AnyRunningMachine,
+  FsmEffect,
+  FsmRunningMachine,
+} from "../fsm-ts/fsm-system-types";
+import type { AnyOptions, AnyStateDefinition } from "../fsm-ts/fsm-types";
 
 export type GraphChangeDescription =
   | {
@@ -10,13 +14,13 @@ export type GraphChangeDescription =
   | { changeType: "removed" }
   | { changeType: "no-change" };
 
-export type ElkNodePromiseMetadata = {
+export type ElkNodePromiseMetadata = GraphChangeDescription & {
   type: "promise";
   promise: FsmEffect;
   label: string;
 };
 
-export type ElkNodeStateMetadata = {
+export type ElkNodeStateMetadata = GraphChangeDescription & {
   type: "state";
   definition: DeepReadonly<AnyStateDefinition> | undefined;
   hidden?: boolean;
@@ -24,19 +28,32 @@ export type ElkNodeStateMetadata = {
   value: string;
 };
 
-export type ElkNodeTransitionMetadata = {
+export type ElkNodeTransitionMetadata = GraphChangeDescription & {
   type: "transition";
   execute?: () => void;
   label: string;
   target: string;
 };
 
+export type ElkNodeStateInvokeMetadata = GraphChangeDescription & {
+  type: "invoke";
+  label: string;
+};
+
+type ElkNodeRootMetadata = GraphChangeDescription & { type: "root" };
+
+export type ElkNodeMachineMetadata = GraphChangeDescription & {
+  type: "machine";
+  instance: AnyRunningMachine;
+  label: string;
+};
+
 export type ElkNodeMetadata =
-  | { type: "root" }
+  | ElkNodeRootMetadata
   | ElkNodeStateMetadata
   | ElkNodeTransitionMetadata
-  | { type: "machine"; instance: AnyRunningMachine; label: string }
-  | { type: "invoke"; label: string }
+  | ElkNodeMachineMetadata
+  | ElkNodeStateInvokeMetadata
   | ElkNodePromiseMetadata;
 
 export type ElkNodeWithMetadata = DeepReadonly<

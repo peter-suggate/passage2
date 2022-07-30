@@ -67,6 +67,41 @@ it("updates current state upon transition", async () => {
   expect(result[0].instances.get("machine")!.state.value).toBe("state2");
 });
 
+it("supports events that do not transition to a new state", async () => {
+  const machine = createMachine({
+    id: "machine",
+    initial: "state",
+    context: { value: "" },
+    states: {
+      state: {
+        on: {
+          event: { actions: ["action"] },
+        },
+      },
+    },
+    actions: {
+      action: () => ({ value: "updated context" }),
+    },
+  });
+
+  const result = pipe(
+    empty,
+    command({ type: "instantiate", machine }),
+    command({
+      type: "transition",
+      id: "machine",
+      name: "event",
+    }),
+    exhaust()
+  );
+
+  const instance = result[0].instances.get("machine")!;
+  expect(instance.state.value).toBe("state");
+  expect(instance.state.context).toEqual({
+    value: "updated context",
+  });
+});
+
 it("invokes actions upon state entry and exit", async () => {
   const state1Entry = jest.fn(() => ({ value: "state1Entry result" }));
   const state1Exit = jest.fn(() => ({ value: "state1Exit result" }));
@@ -178,7 +213,7 @@ it("supports invoking a promise upon entering a state", async () => {
 
   const effect = result[0].effects[0];
   if (effect.status !== "not started") throw Error();
-  const childCommandsOnDone = await effect.execute();
+  const childCommandsOnDone = await effect.execute(jest.fn());
   // const child = Array.from(
   //   result.instances.get("machine")!.state.children.values()
   // )[0];
@@ -193,7 +228,6 @@ it("supports invoking a promise upon entering a state", async () => {
     value: "final",
   });
 
-  console.log(result[0].effects);
   expect(result[0].effects.length).toBe(0);
 });
 

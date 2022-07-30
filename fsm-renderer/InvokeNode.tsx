@@ -1,15 +1,10 @@
 import React from "react";
 import { Handle, Position } from "react-flow-renderer";
-import { ElkNodePromiseMetadata } from "./fsm-render-types";
-import ArrowRightAltIcon from "@mui/icons-material/ArrowRightAlt";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import { DeepReadonly } from "../fsm-ts/fsm-core-types";
-import { AnyStateDefinition } from "../fsm-ts/fsm-types";
+import { ElkNodeStateInvokeMetadata } from "./fsm-render-types";
 import styles from "./Nodes.module.css";
 
 type Props = {
-  data: { width: number; height: number; metadata: { label: string } };
+  data: { width: number; height: number; metadata: ElkNodeStateInvokeMetadata };
 };
 
 export const InvokeNode = ({ data }: Props) => {
@@ -18,10 +13,15 @@ export const InvokeNode = ({ data }: Props) => {
   const { label } = metadata;
 
   return (
-    <div className={styles.invokeNode} style={{ width, height }}>
-      <div className={styles.invokeContent}>
-        <div className={styles.label}>Invoke</div>
-        <div className={styles.src}>{label}</div>
+    <div
+      className={`${styles.invokeNode}  ${styles[data.metadata.changeType]}`}
+      style={{ width, height }}
+    >
+      <div className={`${styles.invokeContent} truncate`}>
+        <span className={styles.label}>Invoke</span>
+        <span className={`${styles.src}`} title={label}>
+          {label}
+        </span>
         {/* <div className={styles.onDone}>
         <CheckCircleOutlineIcon htmlColor="#080" fontSize="small" />
         <ArrowRightAltIcon />

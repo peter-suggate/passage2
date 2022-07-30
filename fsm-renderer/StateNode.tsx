@@ -13,7 +13,6 @@ type Props = {
     // isActive: boolean;
     width: number;
     height: number;
-    changeType: GraphChangeDescription["changeType"];
   };
 };
 
@@ -40,8 +39,7 @@ export const StateNode = ({ data }: Props) => {
 
   return (
     <div
-      // ref={parent}
-      className={`${styles.stateNode} ${styles[data.changeType]}`}
+      className={`${styles.stateNode} ${styles[data.metadata.changeType]}`}
       style={{ width, height }}
     >
       <div className={styles.content}>

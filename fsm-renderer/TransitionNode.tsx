@@ -18,7 +18,6 @@ type Props = {
     onClick?: () => void;
     inStateId: string;
     outStateId: string;
-    changeType: GraphChangeDescription["changeType"];
     width: number;
     height: number;
   };
@@ -34,7 +33,7 @@ export const TransitionNode = ({ data }: Props) => {
       {isAutomatic ? (
         <div
           className={`${styles.transitionNode} ${styles.invoke} ${
-            styles[data.changeType]
+            styles[metadata.changeType]
           } flex flex-row align-center`}
         >
           <div className="flex-grow" />
@@ -56,7 +55,7 @@ export const TransitionNode = ({ data }: Props) => {
       ) : (
         <div
           className={`${styles.transitionNode} ${
-            styles[data.changeType]
+            styles[metadata.changeType]
           } flex flex-row align-center`}
         >
           <div className={"flex-grow"} />
